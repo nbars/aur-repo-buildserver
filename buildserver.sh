@@ -30,7 +30,7 @@ fi
 
 cat <<EOF
 Package building, updating and so forth:
-  $0 [--pkg-configs packages config dir] [--repo-dir path] [OPTION]...
+  $0 [--pkg-configs packages config dir] [--repo-dir path] [--action action] [OPTION]...
 
 $(txt_bold)Required argument$(txt_reset)
   $(txt_red)--action $(txt_green) action $(txt_reset)
