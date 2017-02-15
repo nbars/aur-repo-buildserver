@@ -70,10 +70,15 @@ $(txt_bold)OPTIONS$(txt_reset)
   Debug output
 
   $(txt_red)--muttrc $(txt_green) path $(txt_reset)
+    The path to the muttrc config file.
 
   $(txt_red)--msmtprc $(txt_green) path $(txt_reset)
+    The path to the msmtprc config file.
 
   $(txt_red)--admin-mail $(txt_green) mail address $(txt_reset)
+    The mail address of the admin. To this email address a mail
+    is send, every time an error accours.
+    If this flag is set, --muttrc and --msmtprc must also be passed.
 EOF
 
 exit 1
@@ -422,13 +427,6 @@ fi
 #Parse args
 while [[ $# > 0 ]]; do
   case $1 in
-    "--config")
-      [[ $# > 1 ]] || PrintUsage "Missing path for --config"
-      shift
-      buildserver_config="$1"
-      [[ -f "$1" ]] || PrintUsage "Configuration file $buildserver_config doesn't exists"
-      [[ -r "$1" ]] || PrintUsage "No permission for reading $buildserver_config"
-      ;;
     "--pkg-configs")
       [[ $# > 1 ]] || PrintUsage "Missing path for --pkg-configs"
       shift
@@ -454,6 +452,28 @@ while [[ $# > 0 ]]; do
       shift
       action="$1"
       ;;
+    "--repo-name")
+      [[ $# > 1 ]] || PrintUsage "Missing argument for --repo-name"
+      shift
+      repo_name="$1"
+      ;;
+    "--muttrc")
+      [[ $# > 1 ]] || PrintUsage "Missing argument for --muttrc"
+      shift
+      muttrc_path="$1"
+      [[ -r "$muttrc_path" ]] || PrintUsage "Error while reading $muttrc_path"
+      ;;
+    "--msmtprc")
+      [[ $# > 1 ]] || PrintUsage "Missing argument for --msmtprc"
+      shift
+      msmtprc_path="$1"
+      [[ -r "$msmtprc_path" ]] || PrintUsage "Error while reading msmtprc_path"
+      ;;
+    "--admin-mail")
+      [[ $# > 1 ]] || PrintUsage "Missing argument for --admin-mail"
+      shift
+      admin_mail="$1"
+      ;;
     "--debug")
       verbose=true
       ;;
@@ -466,6 +486,7 @@ while [[ $# > 0 ]]; do
   esac
   shift
 done
+
 
 #Return variable
 __result=""
@@ -504,8 +525,8 @@ if [[ -z "$repo_dir" || -z "$pkg_configs_dir" || -z "$action" ]]; then
 fi
 
 #Check mail settings
-[[ -z "$admin_mail" || ( -r "$muttrc_path" && -r "$msmtprc_path" ) ]] \
-  || PrintUsage "Invalid mail configuration! Some configs do not exist or aren't readable"
+[[ -z "$admin_mail" || ( ! -z "$muttrc_path" && ! -z "$msmtprc_path" ) ]] \
+  || PrintUsage "Invalid mail configuration! Path for at least one config file not set"
 
 mkdir -p "$work_dir" \
   || ErrFatal "Failed to create working directory $work_dir"
