@@ -44,30 +44,28 @@ $(txt_bold)Required argument$(txt_reset)
       associated config files in the --pkg-configs directory.
 
   $(txt_red)--repo-dir $(txt_green) path $(txt_reset)
-  Path must point to an directory where the repo database should be created.
-  If in the given directory a database already exists, it will be update.
+    Path must point to an directory where the repo database should be created.
+    If in the given directory a database already exists, it will be update.
 
   $(txt_red)--pkg-configs $(txt_green) path $(txt_reset)
-  Path to a directory that contains multiple package configuration files.
+    Path to a directory that contains multiple package configuration files.
 
 
 $(txt_bold)OPTIONS$(txt_reset)
   $(txt_red)--work-dir $(txt_green) path $(txt_reset)
-  Directory where packages are build.
-  Default value is \$HOME/.cache/aur-repo-buildserver
+    Directory where packages are build.
+    Default value is \$HOME/.cache/aur-repo-buildserver
 
   $(txt_red)--repo-name $(txt_green) name $(txt_reset)
-  The name of the repository to create/update.
-  This name must be later used as the "repository tag"
-  in you're pacman conf e.g.
-    [aur-repo] <<< TAG
-    SigLevel = ...
-    Server = https://...
-
-
+    The name of the repository to create/update.
+    This name must be later used as the "repository tag"
+    in you're pacman conf e.g.
+      [aur-repo] <<< TAG
+      SigLevel = ...
+      Server = https://...
 
   $(txt_red)--debug $(txt_reset)
-  Debug output
+    Enable output of debugging messages.
 
   $(txt_red)--muttrc $(txt_green) path $(txt_reset)
     The path to the muttrc config file.
