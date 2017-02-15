@@ -498,11 +498,15 @@ indent=0
 
 
 ########## Setup ##########
+
 #Check for empty required arguments
+if [[ -z "$repo_dir" || -z "$pkg_configs_dir" || -z "$action" ]]; then
+  PrintUsage "Missing at least one required argument"
+fi
 
 #Check mail settings
-[[ -z "$admin_mail" || ( -r "$muttrc_path" && -r "$msmtprc_path" )]] \
-  || Err "Invalid mail configuration! Some configs do not exist or aren't readable"
+[[ -z "$admin_mail" || ( -r "$muttrc_path" && -r "$msmtprc_path" ) ]] \
+  || PrintUsage "Invalid mail configuration! Some configs do not exist or aren't readable"
 
 mkdir -p "$work_dir" \
   || ErrFatal "Failed to create working directory $work_dir"
