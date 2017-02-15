@@ -458,6 +458,9 @@ while [[ $# > 0 ]]; do
     "--debug")
       verbose=true
       ;;
+    "--help")
+      PrintUsage ""
+      ;;
     *)
       PrintUsage "Unknown option $1" 
       ;;
