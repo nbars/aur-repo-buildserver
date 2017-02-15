@@ -214,8 +214,7 @@ function ParsePackageConfig() {
     local key="$(echo "$l" | cut -d '=' -f 1 | tr -d ' ')"
     local val="$(echo "$l" | cut -d '=' -f 2- | xargs)"
     [[ ! -z "$key" && ! -z "$val" ]] \
-      || (Err "ParsePackageConfig($1): Malformed config" \
-      && return $ERROR)
+      || { Err "ParsePackageConfig($1): Malformed config"; return $ERROR; }
     __result["$key"]="$val"
   done
   export IFS="$OLD_IFS"
