@@ -70,13 +70,10 @@ $(txt_bold)OPTIONS$(txt_reset)
   $(txt_red)--muttrc $(txt_green) path $(txt_reset)
     The path to the muttrc config file.
 
-  $(txt_red)--msmtprc $(txt_green) path $(txt_reset)
-    The path to the msmtprc config file.
-
   $(txt_red)--admin-mail $(txt_green) mail address $(txt_reset)
     The mail address of the admin. To this email address a mail
     is send, every time an error accours.
-    If this flag is set, --muttrc and --msmtprc must also be passed.
+    If this flag is set, --muttrc must also be passed.
 EOF
 
 exit 1
@@ -548,12 +545,6 @@ while [[ $# > 0 ]]; do
       muttrc_path="$1"
       [[ -r "$muttrc_path" ]] || PrintUsage "Error while reading $muttrc_path"
       ;;
-    "--msmtprc")
-      [[ $# > 1 ]] || PrintUsage "Missing argument for --msmtprc"
-      shift
-      msmtprc_path="$1"
-      [[ -r "$msmtprc_path" ]] || PrintUsage "Error while reading msmtprc_path"
-      ;;
     "--admin-mail")
       [[ $# > 1 ]] || PrintUsage "Missing argument for --admin-mail"
       shift
@@ -593,7 +584,6 @@ verbose="${verbose:-false}"
 #Mail report stuff
 admin_mail="${admin_mail:-}"
 muttrc_path="${muttrc_path:-}"
-msmtprc_path="${msmtprc_path:-}"
 global_log_txt_path="$work_dir/global_log.txt"
 global_log_html_path="$work_dir/global_log.html"
 
@@ -610,7 +600,7 @@ if [[ -z "$repo_dir" || -z "$pkg_configs_dir" || -z "$action" ]]; then
 fi
 
 #Check mail settings
-[[ -z "$admin_mail" || ( ! -z "$muttrc_path" && ! -z "$msmtprc_path" ) ]] \
+[[ -z "$admin_mail" || ( ! -z "$muttrc_path" ) ]] \
   || PrintUsage "Invalid mail configuration! Path for at least one config file not set"
 
 mkdir -p "$work_dir" \
