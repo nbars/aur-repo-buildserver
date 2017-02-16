@@ -281,9 +281,63 @@ RepoAddPackage() {
   repo-add --new --remove "$repo_db" "$repo_dir/$(basename "$1")" || \
     ErrFatal "Error while adding package $1 to repository"
 }
+
+RepoRemovePackage() {
+  PkgGetName "$1"
+  repo-remove "$repo_db" "$__result" || \
+    ErrFatal "Error while removing package $1 from repository"
+  rm -f "$1"
+}
+
 ####################
 
-BuildOrUpdatePackage() {
+#Get all AUR package dependecies for the packages build by the server
+#The returned array also contains the configured packages itself.
+#Returns an array of the package names in $__result and $SUCCESS or $ERROR
+function PackagesGetAurDeps() {
+  local processed_packages=()
+  local work_queue=()
+
+  for p in $(ls $pkg_configs_dir/*.conf); do
+    ParsePackageConfig "$p" || return $ERROR
+    work_queue+=("${__result[name]}")
+  done
+  unset __result
+
+  while [[ "${#work_queue[@]}" > 0 ]]; do
+    #TODO: Check for dependency cycles
+    local current_proccessed_package="${work_queue[0]}"
+    Dbg "PackagesGetAurDeps() work_queue = ${work_queue[*]}"
+
+    local package_deps=("$(pacaur -Si "$current_proccessed_package" 2> /dev/null | grep  "Depends on" | cut -d ':' -f 2 | xargs)") \
+      || { Err "Error while getting dependncies of $current_proccessed_package"; return $ERROR; }
+
+    for dep in ${package_deps[@]}; do
+      #Filter version string
+      dep="$(echo "$dep" | egrep -o "^([a-z]|[A-Z]|-|\.|[0-9])*")"
+
+      local package_repo="$(pacaur -Si "$dep" 2> /dev/null | grep "Repository" | cut -d ':' -f 2 | xargs)" \
+        || { Err "Error while determining repository of $dep"; return $ERROR; }
+
+      if [[ "$package_repo" == "aur" ]]; then
+        work_queue+=("$dep")
+      fi
+    done
+
+    processed_packages=(${processed_packages[@]} $current_proccessed_package)
+    unset work_queue[0]
+    #Shift empty elements (remove)
+    work_queue=( ${work_queue[@]} )
+  done
+
+  Dbg "PackagesGetAurDeps() dependecies(${#processed_packages[@]}) = ${processed_packages[*]}"
+
+  __result=(${processed_packages[@]})
+  return $SUCCESS
+}
+
+
+function BuildOrUpdatePackage() {
   local package_name="$1"
   local package_work_dir="$work_dir/$package_name"
   Info "Creating working directory $package_work_dir"
@@ -337,7 +391,7 @@ BuildOrUpdatePackage() {
 
       if [[ -z "$old_version" ]]; then
         #There is no old package -> first time build
-        Info "Package $new_package_name was build the first time!"
+        Info "Package $new_package_name was build the first time ($new_package_version)"
         RepoAddPackage "$f"
       else
         #Package was updated
@@ -363,9 +417,6 @@ function ProcessPackageConfigs() {
   fi
 
   for cfg in $(ls $pkg_configs_dir/*.conf); do
-    Info "Processing config $cfg"
-    IndentInc
-
     ParsePackageConfig "$cfg"
     if [[ $? != $SUCCESS ]]; then
       Err "ProcessPackageConfig() Malformed config $cfg, skipping..."
@@ -377,6 +428,9 @@ function ProcessPackageConfigs() {
     #Copy package config array from __result to pkg_cfg
     #TODO: Make this less ugly
     eval $(typeset -A -p __result|sed 's/ __result=/ pkg_cfg=/')
+
+    Info "Processing package $(txt_bold)${pkg_cfg[name]}$($txt_reset)"
+    IndentInc
 
     if [[ ! -z "${pkg_cfg[disabled]}" && "${pkg_cfg[disabled]}" == "true" ]]; then
       Info "Config $cfg is disabled, skipping..."
@@ -414,7 +468,40 @@ function ProcessPackageConfigs() {
   IndentRst
 }
 
+function RemovePackgesWoConfig() {
+    Info "Starting removing of packages without config..."
+    IndentInc
 
+    Info "Resolving dependencies, this could take a while"
+    PackagesGetAurDeps
+    [[ "$?" == $SUCCESS ]] \
+      || ErrFatal "Error while resolving dependencies" 
+
+    local packages_aur_deps=(${__result[@]})
+
+    for p in $(ls $repo_dir/*.pkg* 2> /dev/null); do
+      PkgGetName "$p"
+      local has_config=false
+      Info "Checking package $(txt_bold)$__result$(txt_reset)"
+      IndentInc
+
+      for dep in ${packages_aur_deps[@]}; do
+        if [[ "$dep" == "$__result" ]]; then
+          has_config=true
+          break;
+        fi
+      done
+
+      if [[ "$has_config" == "true" ]]; then
+        Info "Package $__result has config, skipping..."
+      else
+        Info "Package $__result has no config, deleting..."
+      fi
+      IndentDec
+    done
+
+    IndentRst
+}
 
 #Arguments parsing
 
@@ -540,6 +627,7 @@ case $action in
     ProcessPackageConfigs
     ;;
   "clean")
+    RemovePackgesWoConfig
     ;;
   *)
     PrintUsage "Invalid argument ($action) for --action"
