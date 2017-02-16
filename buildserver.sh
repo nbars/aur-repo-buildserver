@@ -305,14 +305,19 @@ function PackagesGetAurDeps() {
     local package_deps=("$(pacaur -Si "$current_proccessed_package" 2> /dev/null | grep  "Depends on" | cut -d ':' -f 2 | xargs)") \
       || { Err "Error while getting dependncies of $current_proccessed_package"; return $ERROR; }
 
+    Dbg "PackagesGetAurDeps() Package $current_proccessed_package has the following dependencies ${package_deps[@]}"
+
     for dep in ${package_deps[@]}; do
       #Filter version string
       dep="$(echo "$dep" | egrep -o "^([a-z]|[A-Z]|-|\.|[0-9])*")"
+
+      Dbg "Checking if $dep is a AUR dependency"
 
       local package_repo="$(pacaur -Si "$dep" 2> /dev/null | grep "Repository" | cut -d ':' -f 2 | xargs)" \
         || { Err "Error while determining repository of $dep"; return $ERROR; }
 
       if [[ "$package_repo" == "aur" ]]; then
+        Dbg "$dep is a AUR dependency"
         work_queue+=("$dep")
       fi
     done
