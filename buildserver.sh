@@ -564,9 +564,9 @@ readonly ERROR=-1
 readonly SUCCESS=0
 
 #Vars that depend on parsed args
+repo_name="${repo_name:-aur-prebuilds}"
 repo_db="$repo_dir/$repo_name.db.tar.xz"
 work_dir="${work_dir:-"$HOME/.cache/aur-repo-buildserver/work_dir"}"
-repo_name="${repo_name:-aur-prebuilds-repo}"
 log_file="/tmp/test.txt"
 action="$action"
 verbose="${verbose:-false}"
