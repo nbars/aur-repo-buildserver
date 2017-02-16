@@ -291,7 +291,7 @@ function PackagesGetAurDeps() {
   local processed_packages=()
   local work_queue=()
 
-  for p in $(ls $pkg_configs_dir/*.conf); do
+  for p in $(ls $pkg_configs_dir/*.config); do
     ParsePackageConfig "$p" || return $ERROR
     work_queue+=("${__result[name]}")
   done
@@ -404,12 +404,12 @@ function ProcessPackageConfigs() {
   Info "Processing all configurations in $pkg_configs_dir..."
   IndentInc
 
-  if [[ "$(ls -l $pkg_configs_dir/*.conf | wc -l)" < 1 ]]; then
+  if [[ "$(ls -l $pkg_configs_dir/*.config | wc -l)" < 1 ]]; then
     Info "Package configs dir $pkg_configs_dir is empty, please add some config files"
     return;
   fi
 
-  for cfg in $(ls $pkg_configs_dir/*.conf); do
+  for cfg in $(ls $pkg_configs_dir/*.config); do
     ParsePackageConfig "$cfg"
     if [[ $? != $SUCCESS ]]; then
       Err "ProcessPackageConfig() Malformed config $cfg, skipping..."
