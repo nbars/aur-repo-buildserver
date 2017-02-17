@@ -719,18 +719,24 @@ if [[ "$AUR_REPO_BUILDSERVER_TEST" == "true" ]]; then
 fi
 
 #Check action
-case $action in
-  "build")
-    #Process all configs and update/build the packages
-    ProcessPackageConfigs
-    ;;
-  "clean")
-    RemovePackgesWoConfig
-    ;;
-  *)
-    PrintUsage "Invalid argument ($action) for --action"
-    ;;
-esac
+
+action=( "$(echo "$action" | tr ',' ' ')" )
+
+for cmd in ${action[@]}; do
+  case $cmd in
+    "build")
+      #Process all configs and update/build the packages
+      ProcessPackageConfigs
+      ;;
+    "clean")
+      RemovePackgesWoConfig
+      ;;
+    *)
+      PrintUsage "Invalid argument ($action) for --action"
+      ;;
+  esac
+done
+
 
 
 #Check if any package changed and send mail
