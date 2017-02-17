@@ -302,7 +302,7 @@ function PackagesGetAurDeps() {
     local current_proccessed_package="${work_queue[0]}"
     Dbg "PackagesGetAurDeps() work_queue = ${work_queue[*]}"
 
-    local package_deps=("$(pacaur -Si "$current_proccessed_package" 2> /dev/null | grep  "Depends on" | cut -d ':' -f 2 | xargs)") \
+    local package_deps=("$(cower -i  --format "%D" "$current_proccessed_package" 2> /dev/null | xargs)") \
       || { Err "Error while getting dependncies of $current_proccessed_package"; return $ERROR; }
 
     Dbg "PackagesGetAurDeps() Package $current_proccessed_package has the following dependencies ${package_deps[@]}"
@@ -313,10 +313,8 @@ function PackagesGetAurDeps() {
 
       Dbg "Checking if $dep is a AUR dependency"
 
-      local package_repo="$(pacaur -Si "$dep" 2> /dev/null | grep "Repository" | cut -d ':' -f 2 | xargs)" \
-        || { Err "Error while determining repository of $dep"; return $ERROR; }
-
-      if [[ "$package_repo" == "aur" ]]; then
+      cower -i "$dep"  --format "%D" -q &> /dev/null
+      if [[ $? -eq 0 ]]; then
         Dbg "$dep is a AUR dependency"
         work_queue+=("$dep")
       fi
