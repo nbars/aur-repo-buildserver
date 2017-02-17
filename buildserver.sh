@@ -160,6 +160,53 @@ function HandleFatalError() {
 }
 ####################
 
+function CowerGetVersion() {
+  unset __result
+
+  CowerInfoWarpper "$1" || return $ERROR
+  local info="$__result"
+
+  __result="$(echo "$__result" | grep "Version" | cut -d ':' -f 2- | xargs)"
+
+  Dbg "CowerGetVersion($1) __result=$__result"
+
+  return $SUCCESS
+}
+
+#Get the direct dependencies (non recursive) of the given package.
+#$1 - the package name
+#Returns an array of dependencies in $__result and $SUCCESS or $ERROR
+function CowerGetDeps() {
+  unset __result
+
+  CowerInfoWarpper "$1" || return $ERROR
+  local info="$__result"
+
+  __result="$(echo "$__result" | grep "Depends On" | cut -d ':' -f 2- | xargs)"
+
+  Dbg "CowerGetDeps($1) __result=$__result"
+
+  return $SUCCESS
+}
+
+#$1 - package name to quarry
+#Returns the output from cower and $SUCCESS or $ERROR
+function CowerInfoWarpper() {
+  local package_name="$1"
+  local cache_entry="${cower_cache}/${package_name}"
+
+  unset __result
+
+  if [[ -f "$cache_entry" ]]; then
+    __result="$(cat "$cache_entry")"
+  else
+    __result="$(cower -i "$package_name")" || return $ERROR
+    echo "$__result" > "$cache_entry"
+  fi
+
+  return $SUCCESS
+}
+
 
 ########## Mail stuff ##########
 
@@ -260,6 +307,39 @@ RepoGetPackageVersion() {
   Dbg "RepoGetPackageVersion() -> \"\""
 }
 
+#$1 - name of the package to check
+function RepoPackageAndDepsAreUpToDate() {
+  local package_name="$1"
+
+  PackageGetAurDepsRec "$package_name"
+  local deps=( ${__result[@]} )
+
+  declare -A name_ver_map
+
+  for pkg in $(ls $repo_dir/*.pkg*); do
+    PkgGetVersion "$pkg"
+    local ver="$__result"
+
+    PkgGetName "$pkg"
+    local name="$__result"
+
+    name_ver_map["$name"]="$ver"
+  done
+
+  for dep in ${deps[@]}; do
+    CowerGetVersion "$dep"
+    local remote_ver="$__result"
+    Info "Checking if dependency $dep($remote_ver/${name_ver_map["$dep"]}) is outdated or not build"
+    if [[ "${name_ver_map["$dep"]}" == "" || "${name_ver_map["$dep"]}" != "$remote_ver" ]]; then
+      __result="false"
+      return $SUCCESS
+    fi
+  done
+
+  __result="true"
+  return $SUCCESS
+}
+
 #Adds an package to the given repo
 #$1 - Path to the package to add. This file will be moved into
 #the package directory. Thus it isn't available at its old location
@@ -288,7 +368,7 @@ RepoRemovePackage() {
 
 #Returns an array of all AUR dependencies of the given package.
 #$1 - package name
-function PackageGetAurDeps() {
+function PackageGetAurDepsRec() {
   local package_name="$1"
   local work_queue=( "$package_name" )
   local processed_packages=()
@@ -298,19 +378,23 @@ function PackageGetAurDeps() {
     local current_proccessed_package="${work_queue[0]}"
     Dbg "PackageGetAurDeps() work_queue = ${work_queue[*]}"
 
-    local package_deps=("$(cower -i  --format "%D" "$current_proccessed_package" 2> /dev/null | xargs)") \
-      || { Err "Error while getting dependncies of $current_proccessed_package"; return $ERROR; }
-
-    Dbg "PackageGetAurDeps() Package $current_proccessed_package has the following dependencies ${package_deps[*]}"
+    CowerGetDeps "$current_proccessed_package" || return $ERROR
+    local package_deps=( "$__result" )
 
     for dep in ${package_deps[@]}; do
       #Filter version string
       dep="$(echo "$dep" | egrep -o "^([a-z]|[A-Z]|-|\.|[0-9])*")"
 
-      cower -i "$dep"  --format "%D" -q &> /dev/null
-      if [[ $? -eq 0 ]]; then
-        Dbg "$dep is a AUR dependency"
-        work_queue+=("$dep")
+      #Quarry pacman first, because local db access is faster
+      pacman -Si "$dep" &> /dev/null
+      if [[ $? -ne 0  ]]; then
+        #Some packages are also not provided by pacman (virtual packages?)
+        #TODO: Optimize
+        cower -i "$dep" &> /dev/null
+        if [[ $? -eq 0 ]]; then
+          Dbg "$dep is a AUR dependency"
+          work_queue+=("$dep")
+        fi
       fi
     done
 
@@ -328,15 +412,12 @@ function PackageGetAurDeps() {
 }
 
 
-#Get all AUR package dependecies for the packages build by the server
-#The returned array also contains the configured packages itself.
-#Returns an array of the package names in $__result and $SUCCESS or $ERROR
-function PackagesGetAurDeps() {
+function PackageGetAllAurDepsRec() {
   local deps=()
 
   for p in $(ls $pkg_configs_dir/*.config); do
     ParsePackageConfig "$p" || return $ERROR
-    PackageGetAurDeps "${__result[name]}"
+    PackageGetAurDepsRec "${__result[name]}" || return $ERROR
     deps=( ${deps[@]} ${__result[@]} )
   done
 
@@ -450,6 +531,16 @@ function ProcessPackageConfigs() {
       continue;
     fi
 
+    #Check if packages and deps are up-to-date
+    RepoPackageAndDepsAreUpToDate "${pkg_cfg[name]}"
+    if [[ "$__result" == "true" ]]; then
+      Info "Package ${pkg_cfg[name]} and its dependencies are $(txt_bold)up-to-date$(txt_reset)"
+      IndentDec
+      continue;
+    else
+      Info "Package ${pkg_cfg[name]} is $(txt_bold)not installed or outdated$(txt_reset)"
+    fi
+
     #Import needed PGP keys
     if [[ ! -z "${pkg_cfg[pgp_keys]}" ]]; then
       local import_failed=false
@@ -485,7 +576,7 @@ function RemovePackgesWoConfig() {
     IndentInc
 
     Info "Resolving dependencies, this could take a while"
-    PackagesGetAurDeps
+    PackageGetAllAurDepsRec
     [[ "$?" == $SUCCESS ]] \
       || ErrFatal "Error while resolving dependencies" 
 
