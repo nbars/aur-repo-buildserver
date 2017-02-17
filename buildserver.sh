@@ -477,21 +477,24 @@ function RemovePackgesWoConfig() {
 
     for p in $(ls $repo_dir/*.pkg* 2> /dev/null); do
       PkgGetName "$p"
+      local package_name="$__result"
+
       local has_config=false
-      Info "Checking package $(txt_bold)$__result$(txt_reset)"
+      Info "Checking package $(txt_bold)${package_name}$(txt_reset)"
       IndentInc
 
       for dep in ${packages_aur_deps[@]}; do
-        if [[ "$dep" == "$__result" ]]; then
+        if [[ "$dep" == "$package_name" ]]; then
           has_config=true
           break;
         fi
       done
 
       if [[ "$has_config" == "true" ]]; then
-        Info "Package $__result has config, skipping..."
+        Info "Package $package_name has config, skipping..."
       else
-        Info "Package $__result has no config, deleting..."
+        Info "Package $package_name has no config, deleting..."
+        RepoRemovePackage "$package_name"
       fi
       IndentDec
     done
