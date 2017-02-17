@@ -275,6 +275,8 @@ RepoAddPackage() {
     ErrFatal "Error while adding package $1 to repository"
 }
 
+#Remove the given package form the repository
+#$1 - the name of the package
 RepoRemovePackage() {
   PkgGetName "$1"
   repo-remove "$repo_db" "$__result" || \
@@ -284,34 +286,26 @@ RepoRemovePackage() {
 
 ####################
 
-#Get all AUR package dependecies for the packages build by the server
-#The returned array also contains the configured packages itself.
-#Returns an array of the package names in $__result and $SUCCESS or $ERROR
-function PackagesGetAurDeps() {
+#Returns an array of all AUR dependencies of the given package.
+#$1 - package name
+function PackageGetAurDeps() {
+  local package_name="$1"
+  local work_queue=( "$package_name" )
   local processed_packages=()
-  local work_queue=()
-
-  for p in $(ls $pkg_configs_dir/*.config); do
-    ParsePackageConfig "$p" || return $ERROR
-    work_queue+=("${__result[name]}")
-  done
-  unset __result
 
   while [[ "${#work_queue[@]}" > 0 ]]; do
     #TODO: Check for dependency cycles
     local current_proccessed_package="${work_queue[0]}"
-    Dbg "PackagesGetAurDeps() work_queue = ${work_queue[*]}"
+    Dbg "PackageGetAurDeps() work_queue = ${work_queue[*]}"
 
     local package_deps=("$(cower -i  --format "%D" "$current_proccessed_package" 2> /dev/null | xargs)") \
       || { Err "Error while getting dependncies of $current_proccessed_package"; return $ERROR; }
 
-    Dbg "PackagesGetAurDeps() Package $current_proccessed_package has the following dependencies ${package_deps[@]}"
+    Dbg "PackageGetAurDeps() Package $current_proccessed_package has the following dependencies ${package_deps[*]}"
 
     for dep in ${package_deps[@]}; do
       #Filter version string
       dep="$(echo "$dep" | egrep -o "^([a-z]|[A-Z]|-|\.|[0-9])*")"
-
-      Dbg "Checking if $dep is a AUR dependency"
 
       cower -i "$dep"  --format "%D" -q &> /dev/null
       if [[ $? -eq 0 ]]; then
@@ -320,16 +314,38 @@ function PackagesGetAurDeps() {
       fi
     done
 
-    processed_packages=(${processed_packages[@]} $current_proccessed_package)
+    processed_packages=( ${processed_packages[@]} "$current_proccessed_package" )
     unset work_queue[0]
     #Shift empty elements (remove)
     work_queue=( ${work_queue[@]} )
   done
 
-  Dbg "PackagesGetAurDeps() dependecies(${#processed_packages[@]}) = ${processed_packages[*]}"
+  Dbg "PackageGetAurDeps() $package_name has following dependecies(${#processed_packages[@]}) = ${processed_packages[*]}"
 
-  __result=(${processed_packages[@]})
+  unset __result
+  __result=( $(printf "%s\n" "${processed_packages[@]}" | sort -u) )
   return $SUCCESS
+}
+
+
+#Get all AUR package dependecies for the packages build by the server
+#The returned array also contains the configured packages itself.
+#Returns an array of the package names in $__result and $SUCCESS or $ERROR
+function PackagesGetAurDeps() {
+  local deps=()
+
+  for p in $(ls $pkg_configs_dir/*.config); do
+    ParsePackageConfig "$p" || return $ERROR
+    PackageGetAurDeps "${__result[name]}"
+    deps=( ${deps[@]} ${__result[@]} )
+  done
+
+  deps=( $(printf "%s\n" "${deps[@]}" | sort -u) )
+
+  Dbg "Configured packages have the following dependencies ${deps[*]}"
+
+  unset __result
+  __result=( ${deps[@]} )
 }
 
 
@@ -502,8 +518,8 @@ function RemovePackgesWoConfig() {
     IndentRst
 }
 
-#Arguments parsing
 
+#Arguments parsing
 if [[ $# < 3 ]]; then
   PrintUsage "Not enough arguments"
 fi
@@ -573,6 +589,7 @@ readonly SUCCESS=0
 repo_name="${repo_name:-aur-prebuilds}"
 repo_db="$repo_dir/$repo_name.db.tar.xz"
 work_dir="${work_dir:-"$HOME/.cache/aur-repo-buildserver/work_dir"}"
+cower_cache="${work_dir}/cower_cache"
 log_file="/tmp/test.txt"
 action="$action"
 verbose="${verbose:-false}"
@@ -597,9 +614,18 @@ fi
 mkdir -p "$work_dir" \
   || ErrFatal "Failed to create working directory $work_dir"
 
+mkdir -p "$cower_cache" \
+  || ErrFatal "Error while creating cower cache directory"
+
 #Setup global logging
 echo -n > "$global_log_txt_path" \
   || ErrFatal "Error while creating $global_log_txt_path"
+
+if [[ "$AUR_REPO_BUILDSERVER_TEST" == "true" ]]; then
+  Dbg "Build server is in testing mode. Argument --action will be ignored"
+  Dbg "If you sourced this script, you can now start testing by calling arbitrary functions."
+  return 0
+fi
 
 #Check action
 case $action in
@@ -617,7 +643,7 @@ esac
 
 
 #Check if any package changed and send mail
-#Check if there are unhandled error that must be forwarded to the server admin 
+#Check if there are unhandled error that must be forwarded to the server admin
 
 CleanUp
 exit 0
