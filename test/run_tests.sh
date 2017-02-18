@@ -98,7 +98,6 @@ function test_RepoX() {
 
 function test_AurDepsResolver() {
   PackageGetAurDepsRec "seafile-client"
-  echo "xyxy${__result[*]}"
   arrayEQ "${__result[*]}" "ccnet seafile ccnet-server ccnet libsearpc ccnet-server libsearpc" "$LINENO"
 }
 

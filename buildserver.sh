@@ -104,7 +104,8 @@ function LogStdout() {
   local indent_str="$(head -c "$indent" < /dev/zero | tr '\0' ' ')"
   local msg="[$curr_date]$indent_str $1 $(txt_reset)"
   echo "$msg"
-  echo "$msg" >> "$global_log_txt_path"
+  echo "$msg" >> "$global_log_path"
+  echo "$msg" >> "$package_log_path"
 }
 
 function Dbg() {
@@ -131,14 +132,6 @@ function Err() {
 function ErrFatal() {
   LogStdout "$(txt_red) => $1"
   HandleFatalError "$1"
-}
-
-function GenerateHtmlLog() {
-  if [[ ! -z "$global_log_txt_path" ]]; then
-    [[ -f /usr/bin/aha ]] \
-      || Err "/usr/bin/aha is needed for HTML log generation"
-    cat "$global_log_txt_path" | aha > "$global_log_html_path"
-  fi
 }
 
 ####################
@@ -215,28 +208,24 @@ function CowerInfoWarpper() {
 ########## Mail stuff ##########
 
 #Send a mail
-#$1 - send mail address
-#$2 - receiver mail address
-#$3 - subject
-#$4 - body
-#$5... - paths to files that will be send as attachment
+#$1 - receiver mail address
+#$2 - subject
+#$3 - body
+#$4... - paths to files that will be send as attachment
 #Returns: $SUCCESS or $ERROR
 SendMail() {
-  dbg_arg "send_email" "$@"
-  # info "send_email is not implemented jet!"
-  # return 0
-  local readonly sender="$1"
-  local readonly receiver="$2"
-  local readonly subject="$3"
-  local readonly body="$4"
-  readonly attachments_arg=""
+  local receiver="$1"
+  local subject="$2"
+  local body="$3"
+  local attachments_arg=""
 
   shift 4
   for path in $@; do
     attachments_arg="${attachments_arg}-a $path "
   done
+  echo "$body" > "$work_dir/email.body"
 
-  mutt -s "$subject" $attachments_arg -- "$receiver" < <(echo "$body") || return $ERROR
+  mutt -s "$subject" $attachments_arg -- "$receiver" < "$work_dir/email.body" || return $ERROR
   return $SUCCESS
 }
 
@@ -536,6 +525,9 @@ function ProcessPackageConfigs() {
       continue;
     fi
 
+    #Start new log
+    echo > "$package_log_path"
+
     #Copy package config array from __result to pkg_cfg
     #TODO: Make this less ugly
     eval $(typeset -A -p __result|sed 's/ __result=/ pkg_cfg=/')
@@ -578,7 +570,8 @@ function ProcessPackageConfigs() {
     BuildOrUpdatePackage "${pkg_cfg[name]}"
     if [[ $? != $SUCCESS ]]; then
       Err "Faild to update/build package ${pkg_cfg[name]}"
-      #TODO: Report error per mail
+      SendMail "$admin_mail" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild to update/build package" \
+        "See attachment" "$package_log_path"
       IndentDec
       continue;
     fi
@@ -708,8 +701,8 @@ verbose="${verbose:-false}"
 
 #Mail report stuff
 admin_mail="${admin_mail:-}"
-global_log_txt_path="$work_dir/global_log.txt"
-global_log_html_path="$work_dir/global_log.html"
+global_log_path="$work_dir/global.log"
+package_log_path="$work_dir/package.log"
 
 #Other global vars
 indent=0
@@ -730,8 +723,8 @@ mkdir -p "$cower_cache" \
   || ErrFatal "Error while creating cower cache directory"
 
 #Setup global logging
-echo -n > "$global_log_txt_path" \
-  || ErrFatal "Error while creating $global_log_txt_path"
+echo -n > "$global_log_path" \
+  || ErrFatal "Error while creating $global_log_path"
 
 if [[ "$AUR_REPO_BUILDSERVER_TEST" == "true" ]]; then
   Dbg "Build server is in testing mode. Argument --action will be ignored"
