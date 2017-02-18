@@ -410,20 +410,18 @@ function PackageGetAurDepsRec() {
     work_queue=( ${work_queue[@]} )
   done
 
-  Dbg "PackageGetAurDeps() $package_name has following dependecies(${#processed_packages[@]}) = ${processed_packages[*]}"
-
   unset __result
-
   #Delete the package for that this function was called
   #a package is not a dependency of itself
-  for p in ${processed_packages}; do
+  for p in ${processed_packages[@]}; do
     if [[ "$p" != "$package_name" ]]; then
-      __result=( ${result[@]} "$p" )
+      __result=( ${__result[@]} "$p" )
     fi
   done
 
   #Remove duplicates
   __result=( $(printf "%s\n" "${__result[@]}" | sort -u) )
+  Dbg "PackageGetAurDeps() $package_name has following dependecies(${#__result[@]}) = ${__result[@]}"
   return $SUCCESS
 }
 
