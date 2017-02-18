@@ -219,7 +219,7 @@ SendMail() {
   local body="$3"
   local attachments_arg=""
 
-  shift 4
+  shift 3
   for path in $@; do
     attachments_arg="${attachments_arg}-a $path "
   done
@@ -414,7 +414,7 @@ function PackageGetAurDepsRec() {
 
   #Remove duplicates
   __result=( $(printf "%s\n" "${__result[@]}" | sort -u) )
-  Dbg "PackageGetAurDeps() $package_name has following dependecies(${#__result[@]}) = ${__result[@]}"
+  Dbg "PackageGetAurDeps() $package_name has following dependecies(${#__result[@]}) = ${__result[*]}"
   return $SUCCESS
 }
 
