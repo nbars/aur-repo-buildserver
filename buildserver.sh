@@ -433,14 +433,13 @@ function PackageGetAllAurDepsRec() {
 function BuildOrUpdatePackage() {
   local package_name="$1"
   local package_work_dir="$work_dir/$package_name"
+  Info "Building or updating $package_name"
   Info "Creating working directory $package_work_dir"
   mkdir -p "$package_work_dir"
   if [[ $? != 0 ]]; then
     Err "Error while creating $package_work_dir"
     return $ERROR
   fi
-
-  Info "Building or updating $package_name"
 
   #Create links from packages in repo into workdir
   ln -s $(ls $repo_dir/*.pkg* 2> /dev/null ) "$package_work_dir" 2> /dev/null
@@ -467,7 +466,8 @@ function BuildOrUpdatePackage() {
 
   if [[ -z "$new_files" ]]; then
     #Nothing changed
-    Info "Package $package_name and all its dependencies are up-to-date"
+    Err "This function should never be called if there is nothing to update"
+    return $ERROR
   else
     #Packages where updated/build
     for f in $new_files; do
@@ -485,12 +485,11 @@ function BuildOrUpdatePackage() {
       if [[ -z "$old_version" ]]; then
         #There is no old package -> first time build
         Info "Package $new_package_name was build the first time ($new_package_version)"
-        RepoAddPackage "$f"
       else
         #Package was updated
         Info "Package $new_package_name was updated ($old_version -> $new_package_version)"
-        RepoAddPackage "$f"
       fi
+      RepoAddPackage "$f"
     done
   fi
   Info "Deleting working directory $package_work_dir"
@@ -499,7 +498,7 @@ function BuildOrUpdatePackage() {
 }
 
 #This function processes all package configs and executes
-#for each of the config the BuildOrUpdatePackage function.
+#for each of the configs the BuildOrUpdatePackage function.
 function ProcessPackageConfigs() {
   Info "Processing all configurations in $pkg_configs_dir..."
   IndentInc
@@ -577,7 +576,7 @@ function RemovePackgesWoConfig() {
 
     Info "Resolving dependencies, this could take a while"
     PackageGetAllAurDepsRec
-    [[ "$?" == $SUCCESS ]] \
+    [[ $? -eq $SUCCESS ]] \
       || ErrFatal "Error while resolving dependencies" 
 
     local packages_aur_deps=(${__result[@]})
