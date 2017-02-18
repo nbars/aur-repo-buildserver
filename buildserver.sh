@@ -316,7 +316,7 @@ function RepoPackageAndDepsAreUpToDate() {
   local package_name="$1"
 
   PackageGetAurDepsRec "$package_name"
-  local deps=( ${__result[@]} )
+  local deps=( ${__result[@]} "$package_name" )
 
   declare -A name_ver_map
 
@@ -411,7 +411,17 @@ function PackageGetAurDepsRec() {
   Dbg "PackageGetAurDeps() $package_name has following dependecies(${#processed_packages[@]}) = ${processed_packages[*]}"
 
   unset __result
-  __result=( $(printf "%s\n" "${processed_packages[@]}" | sort -u) )
+
+  #Delete the package for that this function was called
+  #a package is not a dependency of itself
+  for p in ${processed_packages}; do
+    if [[ "$p" != "$package_name" ]]; then
+      __result=( ${result[@]} "$p" )
+    fi
+  done
+
+  #Remove duplicates
+  __result=( $(printf "%s\n" "${__result[@]}" | sort -u) )
   return $SUCCESS
 }
 
@@ -421,8 +431,9 @@ function PackageGetAllAurDepsRec() {
 
   for p in $(ls $pkg_configs_dir/*.config); do
     ParsePackageConfig "$p" || return $ERROR
-    PackageGetAurDepsRec "${__result[name]}" || return $ERROR
-    deps=( ${deps[@]} ${__result[@]} )
+    local package_name="${__result[name]}"
+    PackageGetAurDepsRec "$package_name" || return $ERROR
+    deps=( ${deps[@]} ${__result[@]} "$package_name" )
   done
 
   deps=( $(printf "%s\n" "${deps[@]}" | sort -u) )
@@ -583,7 +594,7 @@ function RemovePackgesWoConfig() {
     [[ $? -eq $SUCCESS ]] \
       || ErrFatal "Error while resolving dependencies" 
 
-    local packages_aur_deps=(${__result[@]})
+    local packages_aur_deps=( ${__result[@]} )
 
     for p in $(ls $repo_dir/*.pkg* 2> /dev/null); do
       PkgGetName "$p"

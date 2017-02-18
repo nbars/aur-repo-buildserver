@@ -89,6 +89,10 @@ function test_RepoX() {
   assertEQ "$?" "$ERROR" "$LINENO"
 }
 
+function test_AurDepsResolver() {
+  PackageGetAllAurDepsRec
+}
+
 #Protect test files
 
 #Run tests
