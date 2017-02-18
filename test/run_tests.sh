@@ -104,6 +104,8 @@ function test_AurDepsResolver() {
 
 rm -rf "$DIR/repo"
 rm -rf "$DIR/packages"
+
+#Create directory structure
 SetUp
 
 export AUR_REPO_BUILDSERVER_TEST=true
@@ -117,6 +119,7 @@ test_PkgX
 test_RepoX
 test_AurDepsResolver
 
+#Delete all used dirs
 TearDown
 
 #Cleanup from buildserver.sh

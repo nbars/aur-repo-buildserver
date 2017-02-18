@@ -94,6 +94,10 @@ function IndentRst() {
   indent=0
 }
 
+function ArgumentParsingError() {
+  echo "$(txt_red)$(txt_bold)$1$(txt_reset)"
+  exit 1
+}
 
 function LogStdout() {
   local curr_date="$(date +'%d.%m.%y-%H:%M:%S')"
@@ -429,7 +433,7 @@ function PackageGetAurDepsRec() {
 function PackageGetAllAurDepsRec() {
   local deps=()
 
-  for p in $(ls $pkg_configs_dir/*.config); do
+  for p in $(ls $pkg_configs_dir/*.config 2> /dev/null ); do
     ParsePackageConfig "$p" || return $ERROR
     local package_name="${__result[name]}"
     PackageGetAurDepsRec "$package_name" || return $ERROR
@@ -624,46 +628,41 @@ function RemovePackgesWoConfig() {
 }
 
 
-#Arguments parsing
-if [[ $# < 3 ]]; then
-  PrintUsage "Not enough arguments"
-fi
-
 #Parse args
 while [[ $# > 0 ]]; do
   case $1 in
     "--pkg-configs")
-      [[ $# > 1 ]] || PrintUsage "Missing path for --pkg-configs"
+      [[ $# > 1 ]] || ArgumentParsingError "Missing path for --pkg-configs"
       shift
       pkg_configs_dir="$1"
-      [[ ! -f "$1" ]] || PrintUsage "$1 is no directory"
-      [[ -d "$1" ]] || PrintUsage "Configuration directory $pkg_configs_dir doesn't exists"
+      [[ ! -f "$1" ]] || ArgumentParsingError "$1 is no directory"
+      [[ -d "$1" ]] || ArgumentParsingError "Configuration directory $pkg_configs_dir doesn't exists"
       ;;
     "--repo-dir")
-      [[ $# > 1 ]] || PrintUsage "Missing path for --repo-dir"
+      [[ $# > 1 ]] || ArgumentParsingError "Missing path for --repo-dir"
       shift
       repo_dir="$1"
-      [[ ! -f "$1" ]] || PrintUsage "$1 is no directory"
-      [[ -d "$1" ]] || PrintUsage "Configuration directory $repo_dir doesn't exists"
+      [[ ! -f "$1" ]] || ArgumentParsingError "$1 is no directory"
+      [[ -d "$1" ]] || ArgumentParsingError "Configuration directory $repo_dir doesn't exists"
       ;;
     "--work-dir")
-      [[ $# > 1 ]] || PrintUsage "Missing path for --work-dir"
+      [[ $# > 1 ]] || ArgumentParsingError "Missing path for --work-dir"
       shift
       work_dir="$1"
-      [[ ! -f "$1" && ! -d "$1" ]] || PrintUsage "work directory should not already exists"
+      [[ ! -f "$1" && ! -d "$1" ]] || ArgumentParsingError "work directory should not already exists"
       ;;
     "--action")
-      [[ $# > 1 ]] || PrintUsage "Missing argument for --action"
+      [[ $# > 1 ]] || ArgumentParsingError "Missing argument for --action"
       shift
       action="$1"
       ;;
     "--repo-name")
-      [[ $# > 1 ]] || PrintUsage "Missing argument for --repo-name"
+      [[ $# > 1 ]] || ArgumentParsingError "Missing argument for --repo-name"
       shift
       repo_name="$1"
       ;;
     "--admin-mail")
-      [[ $# > 1 ]] || PrintUsage "Missing argument for --admin-mail"
+      [[ $# > 1 ]] || ArgumentParsingError "Missing argument for --admin-mail"
       shift
       admin_mail="$1"
       ;;
@@ -671,15 +670,23 @@ while [[ $# > 0 ]]; do
       verbose=true
       ;;
     "--help")
-      PrintUsage ""
+      PrintUsage
       ;;
     *)
-      PrintUsage "Unknown option $1" 
+      ArgumentParsingError "Unknown option $1" 
       ;;
   esac
   shift
 done
 
+[[ ! -z "$pkg_configs_dir" ]] \
+  || ArgumentParsingError "Missing required argument --pkg-configs"
+
+[[ ! -z "$repo_dir" ]] \
+  || ArgumentParsingError "Missing required argument --repo-dir"
+
+[[ ! -z "$action" ]] \
+  || ArgumentParsingError "Missing required argument --action"
 
 #Return variable
 __result=""
@@ -692,7 +699,7 @@ readonly SUCCESS=0
 
 #Vars that depend on parsed args
 repo_name="${repo_name:-aur-prebuilds}"
-repo_db="$repo_dir/$repo_name.db.tar.xz"
+repo_db="$repo_dir/${repo_name}.db.tar.xz"
 work_dir="${work_dir:-"$HOME/.cache/aur-repo-buildserver/work_dir"}"
 cower_cache="${work_dir}/cower_cache"
 log_file="/tmp/test.txt"
