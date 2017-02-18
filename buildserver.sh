@@ -292,19 +292,23 @@ function PkgGetName() {
 
 #Returns the package version of a given package name.
 #$1 - The name of the package
-#Returns: The version of package $1 in __result
+#Returns the version of package in __result and $SUCCESS
+#if there is no package with the given name $ERROR is returned.
 RepoGetPackageVersion() {
   Dbg "RepoGetPackageVersion($1)"
   local package_name="$1"
   __result=""
   for p in $(ls $repo_dir/*.pkg* 2> /dev/null); do
-    if [[ "$(PkgGetName "$p")" == "$package_name" ]]; then
-      __result="$(PkgGetVersion "$p")"
+    PkgGetName "$p"
+    if [[ "$__result" == "$package_name" ]]; then
+      PkgGetVersion "$p"
+      #Just for clear semantic (retval is retval from PkgGetVersion)
+      __result="$__result"
       Dbg "RepoGetPackageVersion() -> $__result"
-      return
+      return $SUCCESS
     fi
   done
-  Dbg "RepoGetPackageVersion() -> \"\""
+  return $ERROR
 }
 
 #$1 - name of the package to check
