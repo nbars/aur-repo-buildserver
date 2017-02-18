@@ -461,7 +461,7 @@ function BuildOrUpdatePackage() {
 
   Info "Running pacaur"
 
-  pacaur -m --needed --noconfirm --noedit "$package_name"
+  pacaur -m --needed --noconfirm --noedit "$package_name" 2>&1 | tee -a "$global_log_path" "$package_log_path"
   if [[ $? != 0 ]]; then
     Err "BuildOrUpdatePackage($1) Error while executing pacaur"
     Info "Deleting working directory $package_work_dir"
@@ -511,12 +511,12 @@ function ProcessPackageConfigs() {
   Info "Processing all configurations in $pkg_configs_dir..."
   IndentInc
 
-  if [[ "$(ls -l $pkg_configs_dir/*.config | wc -l)" < 1 ]]; then
+  if [[ "$(ls -l $pkg_configs_dir/*.config 2> /dev/null | wc -l)" < 1 ]]; then
     Info "Package configs dir $pkg_configs_dir is empty, please add some config files"
     return;
   fi
 
-  for cfg in $(ls $pkg_configs_dir/*.config); do
+  for cfg in $(ls $pkg_configs_dir/*.config 2> /dev/null); do
     ParsePackageConfig "$cfg"
     if [[ $? != $SUCCESS ]]; then
       Err "ProcessPackageConfig() Malformed config $cfg, skipping..."
