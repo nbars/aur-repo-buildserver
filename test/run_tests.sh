@@ -3,6 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 cd "$DIR"
+exit_code=0
 
 export AUR_REPO_BUILDSERVER_TEST=true
 . ./../buildserver.sh --pkg-configs $DIR/configs --repo-dir $DIR/repo --action clean,build
@@ -19,7 +20,15 @@ function arrayEQ() {
 
 function assertEQ() {
   if [[ "$1" != "$2" ]]; then
-    echo "$(txt_red)$3:Assertion failed (Expected=$2 / Value=$1) $(txt_reset)"
+    echo "$(txt_red)$(txt_bold)"
+    echo "------------------------------------"
+    echo "=> Assertion failed"
+    echo "=> Line: $3"
+    echo "=> Value: \"$1\""
+    echo "=> Expected: \"$2\""
+    echo "------------------------------------"
+    echo "$txt_reset"
+    exit_code=1
   fi
 }
 
@@ -27,8 +36,12 @@ function test_config_parse() {
   ParsePackageConfig "$PWD/configs/cutecom.conf"
   assertEQ "${__result[name]}" "cutecom" "$LINENO"
   assertEQ "${__result[disabled]}" "false" "$LINENO"
-  assertEQ "${__result[val_01]}" "123ABC" "$LINENO"
+  assertEQ "${__result[val_01]}" "\$123ABC" "$LINENO"
   unset __result
+
+  ParsePackageConfig "$PWD/configs/malformed.noconf"
+  assertEQ "$?" "$ERROR" "$LINENO"
+
 }
 
 function test_cower() {
@@ -37,10 +50,25 @@ function test_cower() {
 
   local expected=( "ccnet"  "seafile"  "qt5-tools"  "qt5-webkit"  "qt5-base"  "gtk-update-icon-cache"  "qt5-webengine" )
   CowerGetDeps "seafile-client"
-  assertEQ "${__result[*]}" "${expected[*]}" "$LINENO"
-
+  arrayEQ "${__result[*]}" "${expected[*]}" "$LINENO"
 }
 
+function test_PkgX() {
+  local pkg_path="$PWD/packages/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz"
+
+  PkgGetName "$pkg_path"
+  assertEQ "$__result" "xorg-server-common"
+
+  PkgGetVersion "$pkg_path"
+  assertEQ "$__result" "1.19.1-5"
+}
+
+#Run tests
 test_config_parse
 test_cower
+test_PkgX
 
+CleanUp
+
+#Returns 1 if any test failed
+exit $exit_code
