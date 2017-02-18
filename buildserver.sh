@@ -252,15 +252,15 @@ function ParsePackageConfig() {
   declare -g -A __result
 
   local OLD_IFS="$IFS"
-  export IFS=$'\n'
+  IFS=$'\n'
   for l in $(cat "$path"); do
     local key="$(echo "$l" | cut -d '=' -f 1 | tr -d ' ')"
     local val="$(echo "$l" | cut -d '=' -f 2- | xargs)"
     [[ ! -z "$key" && ! -z "$val" ]] \
-      || { Err "ParsePackageConfig($1): Malformed config"; return $ERROR; }
+      || { Err "ParsePackageConfig($1): Malformed config"; IFS="$OLD_IFS"; return $ERROR; }
     __result["$key"]="$val"
   done
-  export IFS="$OLD_IFS"
+  IFS="$OLD_IFS"
   return $SUCCESS
 }
 
@@ -673,7 +673,7 @@ __result=""
 #constants
 #Server from which missing gpg keys will be downloaded
 readonly gpg_keyserver="hkp://pgp.mit.edu"
-readonly ERROR=-1
+readonly ERROR=1
 readonly SUCCESS=0
 
 #Vars that depend on parsed args
