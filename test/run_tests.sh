@@ -7,9 +7,6 @@ cd "$DIR"
 #Is set to 1 if any assert fails
 exit_code=0
 
-export AUR_REPO_BUILDSERVER_TEST=true
-. ./../buildserver.sh --pkg-configs $DIR/configs --repo-dir $DIR/repo --action clean,build --debug
-
 function arrayEQ() {
   local arr0=( $1 )
   local arr1=( $2 )
@@ -32,6 +29,17 @@ function assertEQ() {
     echo "$txt_reset"
     exit_code=1
   fi
+}
+
+function SetUp() {
+  mkdir -p "$DIR/repo"
+  mkdir -p "$DIR/packages"
+  cp $DIR/packages_template/* "$DIR/packages/"
+}
+
+function TearDown() {
+  rm -rf "$DIR/repo"
+  rm -rf "$DIR/packages"
 }
 
 function test_config_parse() {
@@ -66,14 +74,13 @@ function test_PkgX() {
 }
 
 function test_RepoX() {
-  rm -rf $DIR/repo/*
   local err=0
 
-  local pkg_path="$PWD/packages/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz"
-  local pkg_copy_path="${pkg_path}_copy"
-  cp "$pkg_path" "$pkg_copy_path"
+  local pkg_path="$DIR/packages/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz"
 
-  RepoMovePackage "$pkg_copy_path"
+  RepoMovePackage "$pkg_path"
+  #Restore content of package folder
+  SetUp
 
   PkgGetName "$pkg_path"
   local name="$__result"
@@ -93,7 +100,13 @@ function test_AurDepsResolver() {
   PackageGetAllAurDepsRec
 }
 
-#Protect test files
+rm -rf "$DIR/repo"
+rm -rf "$DIR/packages"
+SetUp
+
+export AUR_REPO_BUILDSERVER_TEST=true
+. ./../buildserver.sh --pkg-configs $DIR/configs --repo-dir $DIR/repo --action clean,build --debug
+
 
 #Run tests
 test_config_parse
@@ -101,7 +114,9 @@ test_cower
 test_PkgX
 test_RepoX
 
-rm -rf $DIR/repo/*
+TearDown
+
+#Cleanup from buildserver.sh
 CleanUp
 
 #Returns 1 if any test failed

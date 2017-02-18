@@ -371,6 +371,8 @@ RepoRemovePackage() {
 ####################
 
 #Returns an array of all AUR dependencies of the given package.
+#The package for that this function was called is not included in the
+#array (except there is a cyclic dependency)
 #$1 - package name
 function PackageGetAurDepsRec() {
   local package_name="$1"
