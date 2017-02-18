@@ -351,8 +351,8 @@ function RepoPackageAndDepsAreUpToDate() {
 #(in the given version) wasn't already added to the repo.
 #On error a fatal error is raised
 #Returns: nothing
-RepoAddPackage() {
-  Dbg "RepoAddPackage($1)"
+RepoMovePackage() {
+  Dbg "RepoMovePackage($1)"
   mv "$1" "$repo_dir" \
     || ErrFatal "Error while moving package into repository folder"
   repo-add --new --remove "$repo_db" "$repo_dir/$(basename "$1")" || \
@@ -362,10 +362,10 @@ RepoAddPackage() {
 #Remove the given package form the repository
 #$1 - the name of the package
 RepoRemovePackage() {
-  PkgGetName "$1"
-  repo-remove "$repo_db" "$__result" || \
-    ErrFatal "Error while removing package $1 from repository"
-  rm -f "$1"
+  repo-remove "$repo_db" "$1" \
+    || ErrFatal "Error while removing package $1 from repository"
+  rm -f "$p" \
+    || ErrFatal "Error while removing package $1 from repository"
 }
 
 ####################
@@ -493,7 +493,7 @@ function BuildOrUpdatePackage() {
         #Package was updated
         Info "Package $new_package_name was updated ($old_version -> $new_package_version)"
       fi
-      RepoAddPackage "$f"
+      RepoMovePackage "$f"
     done
   fi
   Info "Deleting working directory $package_work_dir"
