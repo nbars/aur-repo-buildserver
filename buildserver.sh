@@ -295,8 +295,9 @@ function PkgGetName() {
 
 #Returns the package version of a given package name.
 #$1 - The name of the package
-#Returns the version of package in __result and $SUCCESS
-#if there is no package with the given name $ERROR is returned.
+#Returns the version of package in __result
+#If there is no such package __result is set to ""
+#This function doesn't returns a status code.
 RepoGetPackageVersion() {
   Dbg "RepoGetPackageVersion($1)"
   local package_name="$1"
@@ -307,11 +308,12 @@ RepoGetPackageVersion() {
       PkgGetVersion "$p"
       #Just for clear semantic (retval is retval from PkgGetVersion)
       __result="$__result"
-      Dbg "RepoGetPackageVersion() -> $__result"
-      return $SUCCESS
+      Dbg "RepoGetPackageVersion($1) -> $__result"
+      return
     fi
   done
-  return $ERROR
+  __result=""
+  Dbg "RepoGetPackageVersion($1) -> ()"
 }
 
 #$1 - name of the package to check

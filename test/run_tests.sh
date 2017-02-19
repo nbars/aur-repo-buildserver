@@ -87,13 +87,15 @@ function test_RepoX() {
   assertEQ "$name" "xorg-server-common" "$LINENO"
 
   RepoGetPackageVersion "$name"
-  assertEQ "$?" "$SUCCESS" "$LINENO"
   assertEQ "$__result" "1.19.1-5" "$LINENO"
+
+  RepoGetPackageVersion "not-in-repo"
+  assertEQ "$__result" "" "$LINENO"
 
   RepoRemovePackage "$name"
 
   RepoGetPackageVersion "$name"
-  assertEQ "$?" "$ERROR" "$LINENO"
+  assertEQ "$__result" "" "$LINENO"
 }
 
 function test_AurDepsResolver() {
