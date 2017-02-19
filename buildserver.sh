@@ -234,7 +234,7 @@ SendMail() {
   for r in ${receiver[@]}; do
     Info "Sending mail to $r"
     mutt -s "$subject" $attachments_arg -- "$r" < "$work_dir/email.body" \
-      || { Err "Failed to send email to $r"; return $ERROR }
+      || { Err "Failed to send email to $r"; return $ERROR; }
   done
   return $SUCCESS
 }
