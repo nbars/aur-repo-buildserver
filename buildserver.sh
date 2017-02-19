@@ -644,6 +644,12 @@ function RemovePackgesWoConfig() {
     Info "Starting removing of packages without config..."
     IndentInc
 
+    if [[ "$(ls -A $repo_dir/)" == "" ]]; then
+      Info "No packages in repository, skipping"
+      IndentRst
+      return;
+    fi
+
     Info "Resolving dependencies, this could take a while"
     PackageGetAllAurDepsRec
     [[ $? -eq $SUCCESS ]] \
