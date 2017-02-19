@@ -653,7 +653,7 @@ function RemovePackgesWoConfig() {
     Info "Resolving dependencies, this could take a while"
     PackageGetAllAurDepsRec
     [[ $? -eq $SUCCESS ]] \
-      || ErrFatal "Error while resolving dependencies" 
+      || ErrFatal "Error while resolving dependencies"
 
     local packages_aur_deps=( ${__result[@]} )
 
@@ -734,7 +734,7 @@ while [[ $# > 0 ]]; do
       PrintUsage
       ;;
     *)
-      ArgumentParsingError "Unknown option $1" 
+      ArgumentParsingError "Unknown option $1"
       ;;
   esac
   shift
