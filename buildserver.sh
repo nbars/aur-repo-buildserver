@@ -29,12 +29,33 @@ if [[ ! -z "$1" ]]; then
 fi
 
 cat <<EOF
-Package building, updating and so forth:
+This software can be used for running a server that periodically build packages
+from the AUR. The resulting artifacts are automatically added into a repository
+that can be added to a local pacman.conf. This allow to source out the complete
+build process and reducing maintenance time for updating the local system.
+
+Packages that should be build by the server are configured by
+config files. The directory that contains theses files is passed with the
+$(txt_red)--pkg-configs$(txt_reset) flag. An config files must end with a .config suffix and the
+content looks like this:
+$(txt_red)
+name = i3blocks
+disabled = false
+$(txt_reset)
+Another argument that is always needed is $(txt_red)--repo-dir$(txt_reset). This flags is used to
+set the directory where the repository should be build/updated. The third required argument
+is $(txt_red)--action$(txt_reset), this flags decides what the buildserver should do.
+For further flags read ahead.
+
+$(txt_bold)Command line format$(txt_reset)
   $0 [--pkg-configs packages config dir] [--repo-dir path] [--action action] [OPTION]...
 
 $(txt_bold)Required argument$(txt_reset)
-  $(txt_red)--action $(txt_green) action $(txt_reset)
-  The action that should be performed by the buildserver.
+  $(txt_red)--action $(txt_green) action0,action1... $(txt_reset)
+  The actions that should be performed by the buildserver (comma separated).
+  Please mind that chaining several action improves performance due to caching.
+  For example the dependency resolve results from the clean action can be reused
+  by the build action.
   Possible values are the following:
     $(txt_green)build $(txt_reset)
       This action will build/update all targets defined by a config file in the
