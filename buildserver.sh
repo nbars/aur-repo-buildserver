@@ -214,18 +214,28 @@ function CowerInfoWarpper() {
 #$4... - paths to files that will be send as attachment
 #Returns: $SUCCESS or $ERROR
 SendMail() {
-  local receiver="$1"
+  local receiver=( $1 )
   local subject="$2"
   local body="$3"
   local attachments_arg=""
 
+  if [[ "${#receiver[@]}" == "0" ]]; then
+    Info "No receiver passed, skipping sending mail"
+    return $SUCCESS
+  fi
+
   shift 3
+
   for path in $@; do
     attachments_arg="${attachments_arg}-a $path "
   done
   echo "$body" > "$work_dir/email.body"
 
-  mutt -s "$subject" $attachments_arg -- "$receiver" < "$work_dir/email.body" || return $ERROR
+  for r in ${receiver[@]}; do
+    Info "Sending mail to $r"
+    mutt -s "$subject" $attachments_arg -- "$r" < "$work_dir/email.body" \
+      || { Err "Failed to send email to $r"; return $ERROR }
+  done
   return $SUCCESS
 }
 
@@ -491,11 +501,23 @@ function BuildOrUpdatePackage() {
       local old_version="$__result"
 
       if [[ -z "$old_version" ]]; then
-        #There is no old package -> first time build
         Info "Package $new_package_name was build the first time ($new_package_version)"
+        if [[ "$new_package_name" != "$package_name" ]]; then
+          SendMail "$admin_mail" "[AUR-BUILDSERVER][$package_name] Dependency ($new_package_name) successfully build" \
+            "Package $new_package_name ($new_package_version) was build the first time" "$package_log_path"
+        else
+          SendMail "$admin_mail" "[AUR-BUILDSERVER][$package_name] Successfully build" \
+            "Package $new_package_name ($new_package_version) was build the first time" "$package_log_path"
+        fi
       else
-        #Package was updated
         Info "Package $new_package_name was updated ($old_version -> $new_package_version)"
+        if [[ "$new_package_name" != "$package_name" ]]; then
+          SendMail "$admin_mail" "[AUR-BUILDSERVER][$package_name] Dependency ($new_package_name) successfully updated" \
+            "Package $new_package_name ($old_version -> $new_package_version) was updated" "$package_log_path"
+        else
+          SendMail "$admin_mail" "[AUR-BUILDSERVER][$package_name] Successfully updated" \
+            "Package $new_package_name ($old_version -> $new_package_version) was updated" "$package_log_path"
+        fi
       fi
       RepoMovePackage "$f"
     done
@@ -520,7 +542,8 @@ function ProcessPackageConfigs() {
     ParsePackageConfig "$cfg"
     if [[ $? != $SUCCESS ]]; then
       Err "ProcessPackageConfig() Malformed config $cfg, skipping..."
-      #TODO: Report error per mail
+      SendMail "$admin_mail" "[AUR-BUILDSERVER][ERROR] Malformed config" \
+            "Error while parsing config $cfg" "$package_log_path"
       IndentDec
       continue;
     fi
@@ -559,7 +582,8 @@ function ProcessPackageConfigs() {
         gpg --keyserver "$gpg_keyserver" --recv-keys  "$key"
         if [[ $? != 0 ]]; then
           Err "Faild to import PGP key $key for package ${pkg_cfg[name]}, skipping package..."
-          #TODO: Report error per mail
+          SendMail "$admin_mail" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild import PGP key" \
+            "See attachment" "$package_log_path"
           import_failed=true
           break;
         fi
