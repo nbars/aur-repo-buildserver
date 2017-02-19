@@ -316,11 +316,17 @@ RepoGetPackageVersion() {
   Dbg "RepoGetPackageVersion($1) -> ()"
 }
 
+#This function checks if all AUR dependencies and the package
+#itself is up-to-date.
 #$1 - name of the package to check
+#Returns true or false in __result and $SUCCESS.
+#On error $ERROR is returned
 function RepoPackageAndDepsAreUpToDate() {
   local package_name="$1"
 
-  PackageGetAurDepsRec "$package_name"
+  __result="false"
+
+  PackageGetAurDepsRec "$package_name" || return $ERROR
   local deps=( ${__result[@]} "$package_name" )
 
   declare -A name_ver_map
@@ -349,13 +355,13 @@ function RepoPackageAndDepsAreUpToDate() {
   return $SUCCESS
 }
 
-#Adds an package to the given repo
+#Moves a package to the given repository.
 #$1 - Path to the package to add. This file will be moved into
-#the package directory. Thus it isn't available at its old location
+#the repository directory. Thus it isn't available at its old location
 #after this function returns. The function expects that the given package
-#(in the given version) wasn't already added to the repo.
-#On error a fatal error is raised
-#Returns: nothing
+#(with same version) wasn't already added to the repo.
+#On error a fatal error is raised.
+#Returns nothing
 RepoMovePackage() {
   Dbg "RepoMovePackage($1)"
   mv "$1" "$repo_dir" \
@@ -366,6 +372,8 @@ RepoMovePackage() {
 
 #Remove the given package form the repository
 #$1 - the name of the package
+#On error a fatal error is raised.
+#Returns nothing
 RepoRemovePackage() {
   repo-remove "$repo_db" "$1" \
     || ErrFatal "Error while removing package $1 from repository"
@@ -375,10 +383,12 @@ RepoRemovePackage() {
 
 ####################
 
-#Returns an array of all AUR dependencies of the given package.
+#Returns an array of all AUR dependencies (recursive) of the given package.
 #The package for that this function was called is not included in the
 #array (except there is a cyclic dependency)
 #$1 - package name
+#Returns an array of all AUR dependencies of package $1.
+#On error $ERROR is returned, else $SUCCESS
 function PackageGetAurDepsRec() {
   local package_name="$1"
   local work_queue=( "$package_name" )
