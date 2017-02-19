@@ -656,6 +656,10 @@ function RemovePackgesWoConfig() {
     IndentRst
 }
 
+if [[ $# == 0 ]]; then
+  PrintUsage
+fi
+
 
 #Parse args
 while [[ $# > 0 ]]; do
