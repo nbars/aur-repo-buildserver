@@ -96,6 +96,7 @@ function IndentRst() {
 
 function ArgumentParsingError() {
   echo "$(txt_red)$(txt_bold)$1$(txt_reset)"
+  echo "$(txt_red)$(txt_bold)Use the --help flag for further informations(txt_reset)"
   exit 1
 }
 
