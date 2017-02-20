@@ -397,10 +397,16 @@ RepoMovePackage() {
 #On error a fatal error is raised.
 #Returns nothing
 RepoRemovePackage() {
+  Dbg "RepoRemovePackage($1)"
   repo-remove "$repo_db" "$1" \
     || ErrFatal "Error while removing package $1 from repository"
-  rm -f "$p" \
-    || ErrFatal "Error while removing package $1 from repository"
+  while IFS= read -r -d '' file_p; do
+    PkgGetName "$file_p"
+    if [[ "$__result" == "$1" ]]; then
+      Dbg "Deleting $file_p"
+      rm "$file_p"
+    fi
+  done < <(find "$repo_dir" -regextype posix-extended -regex '.*\.pkg\.tar(\.xz|)$' -print0)
 }
 
 ####################
