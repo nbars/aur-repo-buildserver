@@ -96,6 +96,8 @@ function test_RepoX() {
 
   RepoGetPackageVersion "$name"
   assertEQ "$__result" "" "$LINENO"
+
+  [[ ! -f "$repo_dir/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz" ]] || assertEQ "1" "0" "$LINENO"
 }
 
 function test_AurDepsResolver() {
