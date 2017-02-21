@@ -100,7 +100,7 @@ function IndentInc() {
 }
 
 function IndentDec() {
-  if [[ $(( indent - 3)) < 0 ]]; then
+  if [[ $(( indent - 3)) -gt 0 ]]; then
     indent=0
   else
     indent=$(( indent - 3 ))
@@ -159,7 +159,6 @@ function ErrFatal() {
 #Deletes all temporary files
 function CleanUp() {
   Info "Cleaning up"
-  rm -rf "$rpc_cache_dir"
   rm -rf "$work_dir"
 }
 
@@ -195,7 +194,6 @@ function CowerGetDeps() {
   unset __result
 
   CowerInfoWarpper "$1" || return $ERROR
-  local info="$__result"
 
   __result="$(echo "$__result" | grep "Depends On" | cut -d ':' -f 2- | xargs)"
 
@@ -239,7 +237,7 @@ SendMail() {
 
   if [[ "${#receiver[@]}" == "0" ]]; then
     Info "No receiver passed, skipping sending mail"
-    return $SUCCESS
+    return "$SUCCESS"
   fi
 
   shift 3
@@ -252,9 +250,9 @@ SendMail() {
   for r in ${receiver[@]}; do
     Info "Sending mail to $r"
     mutt -s "$subject" $attachments_arg -- "$r" < "$work_dir/email.body" \
-      || { Err "Failed to send email to $r"; return $ERROR; }
+      || { Err "Failed to send email to $r"; return "$ERROR"; }
   done
-  return $SUCCESS
+  return "$SUCCESS"
 }
 
 
@@ -275,10 +273,11 @@ function ParsePackageConfig() {
   local OLD_IFS="$IFS"
   IFS=$'\n'
   for l in $(cat "$path"); do
-    local key="$(echo "$l" | cut -d '=' -f 1 | tr -d ' ')"
-    local val="$(echo "$l" | cut -d '=' -f 2- | xargs)"
+    local key val
+    key="$(echo "$l" | cut -d '=' -f 1 | tr -d ' ')"
+    val="$(echo "$l" | cut -d '=' -f 2- | xargs)"
     [[ ! -z "$key" && ! -z "$val" ]] \
-      || { Err "ParsePackageConfig($1): Malformed config"; IFS="$OLD_IFS"; return $ERROR; }
+      || { Err "ParsePackageConfig($1): Malformed config"; IFS="$OLD_IFS"; return "$ERROR"; }
     __result["$key"]="$val"
   done
   IFS="$OLD_IFS"
@@ -344,7 +343,7 @@ function RepoPackageAndDepsAreUpToDate() {
 
   __result="false"
 
-  PackageGetAurDepsRec "$package_name" || return $ERROR
+  PackageGetAurDepsRec "$package_name" || return "$ERROR"
   local deps=( ${__result[@]} "$package_name" )
 
   declare -A name_ver_map
@@ -365,12 +364,12 @@ function RepoPackageAndDepsAreUpToDate() {
     Info "Checking if dependency $dep($remote_ver/${name_ver_map["$dep"]}) is outdated or not build"
     if [[ "${name_ver_map["$dep"]}" == "" || "${name_ver_map["$dep"]}" != "$remote_ver" ]]; then
       __result="false"
-      return $SUCCESS
+      return "$SUCCESS"
     fi
   done
 
   __result="true"
-  return $SUCCESS
+  return "$SUCCESS"
 }
 
 #Moves a package to the given repository.
@@ -418,12 +417,12 @@ function PackageGetAurDepsRec() {
   local work_queue=( "$package_name" )
   local processed_packages=()
 
-  while [[ "${#work_queue[@]}" > 0 ]]; do
+  while [[ "${#work_queue[@]}" -gt 0 ]]; do
     #TODO: Check for dependency cycles
     local current_proccessed_package="${work_queue[0]}"
     Dbg "PackageGetAurDeps() work_queue = ${work_queue[*]}"
 
-    CowerGetDeps "$current_proccessed_package" || return $ERROR
+    CowerGetDeps "$current_proccessed_package" || return "$ERROR"
     local package_deps=( "$__result" )
 
     for dep in ${package_deps[@]}; do
@@ -431,12 +430,11 @@ function PackageGetAurDepsRec() {
       dep="$(echo "$dep" | egrep -o "^([a-z]|[A-Z]|-|\.|[0-9])*")"
 
       #Quarry pacman first, because local db access is faster
-      pacman -Si "$dep" &> /dev/null
-      if [[ $? -ne 0  ]]; then
+      if ! pacman -Si "$dep" &> /dev/null; then
         #Some packages are also not provided by pacman (virtual packages?)
         #TODO: Optimize
-        cower -i "$dep" &> /dev/null
-        if [[ $? -eq 0 ]]; then
+
+        if cower -i "$dep" &> /dev/null; then
           Dbg "$dep is a AUR dependency"
           work_queue+=("$dep")
         fi
@@ -444,12 +442,12 @@ function PackageGetAurDepsRec() {
     done
 
     processed_packages=( ${processed_packages[@]} "$current_proccessed_package" )
-    unset work_queue[0]
+    unset "work_queue[0]"
     #Shift empty elements (remove)
     work_queue=( ${work_queue[@]} )
   done
 
-  unset __result
+  unset "__result"
   #Delete the package for that this function was called
   #a package is not a dependency of itself
   for p in ${processed_packages[@]}; do
@@ -461,7 +459,7 @@ function PackageGetAurDepsRec() {
   #Remove duplicates
   __result=( $(printf "%s\n" "${__result[@]}" | sort -u) )
   Dbg "PackageGetAurDeps() $package_name has following dependecies(${#__result[@]}) = ${__result[*]}"
-  return $SUCCESS
+  return "$SUCCESS"
 }
 
 
@@ -469,9 +467,9 @@ function PackageGetAllAurDepsRec() {
   local deps=()
 
   while IFS= read -r -d '' cfg; do
-    ParsePackageConfig "$cfg" || return $ERROR
+    ParsePackageConfig "$cfg" || return "$ERROR"
     local package_name="${__result[name]}"
-    PackageGetAurDepsRec "$package_name" || return $ERROR
+    PackageGetAurDepsRec "$package_name" || return "$ERROR"
     deps=( ${deps[@]} ${__result[@]} "$package_name" )
   done < <(find "$pkg_configs_dir" -regextype posix-extended -regex "$config_regex" -print0)
 
@@ -489,13 +487,14 @@ function BuildOrUpdatePackage() {
   local package_work_dir="$work_dir/$package_name"
   Info "Building or updating $package_name"
   Info "Creating working directory $package_work_dir"
-  mkdir -p "$package_work_dir"
-  if [[ $? != 0 ]]; then
+
+  if ! mkdir -p "$package_work_dir"; then
     Err "Error while creating $package_work_dir"
-    return $ERROR
+    return "$ERROR"
   fi
 
   #Create links from packages in repo into workdir
+  #TODO: Make this in a loop
   ln -s $(ls $repo_dir/*.pkg* 2> /dev/null ) "$package_work_dir" 2> /dev/null
 
   #Place where pacaur will look for already build packages
@@ -508,20 +507,22 @@ function BuildOrUpdatePackage() {
   Info "Running pacaur"
 
   pacaur -m --needed --noconfirm --noedit "$package_name" 2>&1 | tee -a "$global_log_path" "$package_log_path"
-  if [[ $? != 0 ]]; then
+  if [[ $? -ne 0 ]]; then
     Err "BuildOrUpdatePackage($1) Error while executing pacaur"
     Info "Deleting working directory $package_work_dir"
     rm -rf "$package_work_dir"
-    return $ERROR
+    return "$ERROR"
   fi
 
   #New build packages aren't symlinks
-  local new_files=$(find "$package_work_dir" -mindepth 1 ! -type l)
+  local new_files
+  new_files="$(find "$package_work_dir" -mindepth 1 ! -type l)" \
+    || return "$ERROR"
 
   if [[ -z "$new_files" ]]; then
     #Nothing changed
     Err "This function should never be called if there is nothing to update"
-    return $ERROR
+    return "$ERROR"
   else
     #Packages where updated/build
     for f in $new_files; do
@@ -560,7 +561,7 @@ function BuildOrUpdatePackage() {
   fi
   Info "Deleting working directory $package_work_dir"
   rm -rf "$package_work_dir"
-  return $SUCCESS
+  return "$SUCCESS"
 }
 
 #This function processes all package configs and executes
@@ -569,14 +570,13 @@ function ProcessPackageConfigs() {
   Info "Processing all configurations in $pkg_configs_dir..."
   IndentInc
 
-  if [[ "$(ls -l $pkg_configs_dir/*.config 2> /dev/null | wc -l)" < 1 ]]; then
+  if [[ "$(ls -l $pkg_configs_dir/*.config 2> /dev/null | wc -l)" -eq 1 ]]; then
     Info "Package configs dir $pkg_configs_dir is empty, please add some config files"
     return;
   fi
 
   while IFS= read -r -d '' cfg; do
-    ParsePackageConfig "$cfg"
-    if [[ $? != $SUCCESS ]]; then
+    if ! ParsePackageConfig "$cfg"; then
       Err "ProcessPackageConfig() Malformed config $cfg, skipping..."
       SendMail "$admin_mail" "[AUR-BUILDSERVER][ERROR] Malformed config" \
             "Error while parsing config $cfg" "$package_log_path"
@@ -591,7 +591,7 @@ function ProcessPackageConfigs() {
     #TODO: Make this less ugly
     eval $(typeset -A -p __result|sed 's/ __result=/ pkg_cfg=/')
 
-    Info "Processing package $(txt_bold)${pkg_cfg[name]}$($txt_reset)"
+    Info "Processing package $(txt_bold)${pkg_cfg[name]}$(txt_reset)"
     IndentInc
 
     if [[ ! -z "${pkg_cfg[disabled]}" && "${pkg_cfg[disabled]}" == "true" ]]; then
@@ -615,8 +615,7 @@ function ProcessPackageConfigs() {
       local import_failed=false
       for key in ${pkg_cfg[pgp_keys]} ; do
         Info "Importing PGP-Key $key..."
-        gpg --keyserver "$gpg_keyserver" --recv-keys  "$key"
-        if [[ $? != 0 ]]; then
+        if gpg --keyserver "$gpg_keyserver" --recv-keys  "$key"; then
           Err "Faild to import PGP key $key for package ${pkg_cfg[name]}, skipping package..."
           SendMail "$admin_mail" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild import PGP key" \
             "See attachment" "$package_log_path"
@@ -646,7 +645,7 @@ function RemovePackgesWoConfig() {
     Info "Starting removing of packages without config..."
     IndentInc
 
-    if [[ "$(ls -A $repo_dir/)" == "" ]]; then
+    if [[ "$(ls -A "$repo_dir")" == "" ]]; then
       Info "No packages in repository, skipping"
       IndentRst
       return;
@@ -692,40 +691,40 @@ fi
 
 
 #Parse args
-while [[ $# > 0 ]]; do
+while [[ $# -gt 0 ]]; do
   case $1 in
     "--pkg-configs")
-      [[ $# > 1 ]] || ArgumentParsingError "Missing path for --pkg-configs"
+      [[ $# -gt 1 ]] || ArgumentParsingError "Missing path for --pkg-configs"
       shift
       pkg_configs_dir="$1"
       [[ ! -f "$1" ]] || ArgumentParsingError "$1 is no directory"
       [[ -d "$1" ]] || ArgumentParsingError "Configuration directory $pkg_configs_dir doesn't exists"
       ;;
     "--repo-dir")
-      [[ $# > 1 ]] || ArgumentParsingError "Missing path for --repo-dir"
+      [[ $# -gt 1 ]] || ArgumentParsingError "Missing path for --repo-dir"
       shift
       repo_dir="$1"
       [[ ! -f "$1" ]] || ArgumentParsingError "$1 is no directory"
       [[ -d "$1" ]] || ArgumentParsingError "Configuration directory $repo_dir doesn't exists"
       ;;
     "--work-dir")
-      [[ $# > 1 ]] || ArgumentParsingError "Missing path for --work-dir"
+      [[ $# -gt 1 ]] || ArgumentParsingError "Missing path for --work-dir"
       shift
       work_dir="$1"
       [[ ! -f "$1" && ! -d "$1" ]] || ArgumentParsingError "work directory should not already exists"
       ;;
     "--action")
-      [[ $# > 1 ]] || ArgumentParsingError "Missing argument for --action"
+      [[ $# -gt 1 ]] || ArgumentParsingError "Missing argument for --action"
       shift
       action="$1"
       ;;
     "--repo-name")
-      [[ $# > 1 ]] || ArgumentParsingError "Missing argument for --repo-name"
+      [[ $# -gt 1 ]] || ArgumentParsingError "Missing argument for --repo-name"
       shift
       repo_name="$1"
       ;;
     "--admin-mail")
-      [[ $# > 1 ]] || ArgumentParsingError "Missing argument for --admin-mail"
+      [[ $# -gt 1 ]] || ArgumentParsingError "Missing argument for --admin-mail"
       shift
       admin_mail="$1"
       ;;
@@ -767,7 +766,6 @@ repo_name="${repo_name:-aur-prebuilds}"
 repo_db="$repo_dir/${repo_name}.db.tar.xz"
 work_dir="${work_dir:-"$HOME/.cache/aur-repo-buildserver/work_dir"}"
 cower_cache="${work_dir}/cower_cache"
-log_file="/tmp/test.txt"
 action="$action"
 verbose="${verbose:-false}"
 
