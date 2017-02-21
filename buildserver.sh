@@ -24,10 +24,6 @@ function txt_yellow {
 
 function PrintUsage() {
 
-if [[ ! -z "$1" ]]; then
-  echo -e $(txt_red; txt_bold)"$1\n"$(txt_reset)
-fi
-
 cat <<EOF
 This software can be used for running a server that periodically build packages
 from the AUR. The resulting artifacts are automatically added into a repository
@@ -324,16 +320,16 @@ RepoGetPackageVersion() {
   Dbg "RepoGetPackageVersion($1)"
   local package_name="$1"
   __result=""
-  for p in $(ls $repo_dir/*.pkg* 2> /dev/null); do
-    PkgGetName "$p"
+  while IFS= read -r -d '' pkg; do
+    PkgGetName "$pkg"
     if [[ "$__result" == "$package_name" ]]; then
-      PkgGetVersion "$p"
+      PkgGetVersion "$pkg"
       #Just for clear semantic (retval is retval from PkgGetVersion)
       __result="$__result"
       Dbg "RepoGetPackageVersion($1) -> $__result"
       return
     fi
-  done
+  done < <(find "$repo_dir" -regextype posix-extended -regex "$pkgfile_regex" -print0)
   __result=""
   Dbg "RepoGetPackageVersion($1) -> ()"
 }
@@ -353,7 +349,7 @@ function RepoPackageAndDepsAreUpToDate() {
 
   declare -A name_ver_map
 
-  for pkg in $(ls $repo_dir/*.pkg*); do
+  while IFS= read -r -d '' pkg; do
     PkgGetVersion "$pkg"
     local ver="$__result"
 
@@ -361,7 +357,7 @@ function RepoPackageAndDepsAreUpToDate() {
     local name="$__result"
 
     name_ver_map["$name"]="$ver"
-  done
+  done < <(find "$repo_dir" -regextype posix-extended -regex "$pkgfile_regex" -print0)
 
   for dep in ${deps[@]}; do
     CowerGetVersion "$dep"
@@ -400,11 +396,11 @@ RepoRemovePackage() {
   Dbg "RepoRemovePackage($1)"
   repo-remove "$repo_db" "$1" \
     || ErrFatal "Error while removing package $1 from repository"
-  while IFS= read -r -d '' file_p; do
-    PkgGetName "$file_p"
+  while IFS= read -r -d '' pkg; do
+    PkgGetName "$pkg"
     if [[ "$__result" == "$1" ]]; then
-      Dbg "Deleting $file_p"
-      rm "$file_p"
+      Dbg "Deleting $pkg"
+      rm "$pkg"
     fi
   done < <(find "$repo_dir" -regextype posix-extended -regex '.*\.pkg\.tar(\.xz|)$' -print0)
 }
@@ -472,12 +468,12 @@ function PackageGetAurDepsRec() {
 function PackageGetAllAurDepsRec() {
   local deps=()
 
-  for p in $(ls $pkg_configs_dir/*.config 2> /dev/null ); do
-    ParsePackageConfig "$p" || return $ERROR
+  while IFS= read -r -d '' cfg; do
+    ParsePackageConfig "$cfg" || return $ERROR
     local package_name="${__result[name]}"
     PackageGetAurDepsRec "$package_name" || return $ERROR
     deps=( ${deps[@]} ${__result[@]} "$package_name" )
-  done
+  done < <(find "$pkg_configs_dir" -regextype posix-extended -regex "$config_regex" -print0)
 
   deps=( $(printf "%s\n" "${deps[@]}" | sort -u) )
 
@@ -578,7 +574,7 @@ function ProcessPackageConfigs() {
     return;
   fi
 
-  for cfg in $(ls $pkg_configs_dir/*.config 2> /dev/null); do
+  while IFS= read -r -d '' cfg; do
     ParsePackageConfig "$cfg"
     if [[ $? != $SUCCESS ]]; then
       Err "ProcessPackageConfig() Malformed config $cfg, skipping..."
@@ -641,7 +637,7 @@ function ProcessPackageConfigs() {
     fi
 
   IndentDec
-  done
+  done < <(find "$pkg_configs_dir" -regextype posix-extended -regex "$config_regex" -print0)
 
   IndentRst
 }
@@ -663,8 +659,8 @@ function RemovePackgesWoConfig() {
 
     local packages_aur_deps=( ${__result[@]} )
 
-    for p in $(ls $repo_dir/*.pkg* 2> /dev/null); do
-      PkgGetName "$p"
+    while IFS= read -r -d '' pkg; do
+      PkgGetName "$pkg"
       local package_name="$__result"
 
       local has_config=false
@@ -685,7 +681,7 @@ function RemovePackgesWoConfig() {
         RepoRemovePackage "$package_name"
       fi
       IndentDec
-    done
+    done < <(find "$repo_dir" -regextype posix-extended -regex "$pkgfile_regex" -print0)
 
     IndentRst
 }
@@ -763,6 +759,8 @@ __result=""
 readonly gpg_keyserver="hkp://pgp.mit.edu"
 readonly ERROR=1
 readonly SUCCESS=0
+readonly pkgfile_regex='.*\.pkg\.tar(\.xz|)$'
+readonly config_regex='.*\.config$'
 
 #Vars that depend on parsed args
 repo_name="${repo_name:-aur-prebuilds}"
@@ -820,15 +818,10 @@ for cmd in ${action[@]}; do
       RemovePackgesWoConfig
       ;;
     *)
-      PrintUsage "Invalid argument ($action) for --action"
+      ArgumentParsingError "Invalid argument ($cmd) for --action"
       ;;
   esac
 done
-
-
-
-#Check if any package changed and send mail
-#Check if there are unhandled error that must be forwarded to the server admin
 
 CleanUp
 exit 0
