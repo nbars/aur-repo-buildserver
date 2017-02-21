@@ -100,7 +100,7 @@ function IndentInc() {
 }
 
 function IndentDec() {
-  if [[ $(( indent - 3)) -gt 0 ]]; then
+  if [[ $(( indent - 3)) -lt 0 ]]; then
     indent=0
   else
     indent=$(( indent - 3 ))
@@ -416,9 +416,14 @@ function PackageGetAurDepsRec() {
   local package_name="$1"
   local work_queue=( "$package_name" )
   local processed_packages=()
+  local readonly max_iterations=100
+  local current_interation=0
 
   while [[ "${#work_queue[@]}" -gt 0 ]]; do
-    #TODO: Check for dependency cycles
+    current_interation=$(( current_interation + 1 ))
+    [[ $current_interation -lt $max_iterations ]] \
+      || { Err "Seems like there is a dependency cycle, operation failed"; return "$ERROR"; }
+
     local current_proccessed_package="${work_queue[0]}"
     Dbg "PackageGetAurDeps() work_queue = ${work_queue[*]}"
 
