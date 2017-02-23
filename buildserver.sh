@@ -247,6 +247,11 @@ SendMail() {
   local body="$3"
   local attachments_arg=""
 
+  if [[ "$mail_reporting" != "true" ]]; then
+    Dbg "Mail reporting is not enabled, skipping sending mail"
+    return "$SUCCESS"
+  fi
+
   if [[ "${#receiver[@]}" == "0" ]]; then
     Info "No receiver passed, skipping sending mail"
     return "$SUCCESS"
@@ -748,6 +753,9 @@ while [[ $# -gt 0 ]]; do
       shift
       admin_mail="$1"
       ;;
+    "--mail-reporting")
+      mail_reporting=true
+      ;;
     "--debug")
       verbose=true
       ;;
@@ -794,6 +802,7 @@ action="$action"
 verbose="${verbose:-false}"
 
 #Mail report stuff
+mail_reporting="${mail_reporting:-false}"
 admin_mail="${admin_mail:-}"
 global_log_path="$work_dir/global.log"
 package_log_path="$work_dir/package.log"
