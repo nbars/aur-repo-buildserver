@@ -92,6 +92,14 @@ EOF
 exit 1
 }
 
+function SIGINT_trap() {
+  IndentRst
+  [[ -z "$cower_pid" ]] || { kill -TERM "$cower_pid" &> /dev/null; wait "$cower_pid"; }
+  [[ -z "$pacaur_pid" ]] || { kill -TERM "$pacaur_pid" &> /dev/null; wait "$pacaur_pid"; }
+  CleanUp
+  exit 0
+}
+
 
 ########## Logging ##########
 
@@ -213,7 +221,10 @@ function CowerInfoWarpper() {
   if [[ -f "$cache_entry" ]]; then
     __result="$(cat "$cache_entry")"
   else
-    __result="$(cower -i "$package_name")" || return $ERROR
+    __result="$(cower -i "$package_name")"
+    cower_pid="$!"
+    wait "$cower_pid" || return $ERROR
+    cower_pid=""
     echo "$__result" > "$cache_entry"
   fi
 
@@ -511,7 +522,10 @@ function BuildOrUpdatePackage() {
 
   Info "Running pacaur"
 
-  pacaur -m --needed --noconfirm --noedit "$package_name" 2>&1 | tee -a "$global_log_path" "$package_log_path"
+  pacaur -m --needed --noconfirm --noedit "$package_name" 2>&1 | tee -a "$global_log_path" "$package_log_path" &
+  pacaur_pid="$!"
+  wait "$pacaur_pid"
+  pacaur_pid=""
   if [[ $? -ne 0 ]]; then
     Err "BuildOrUpdatePackage($1) Error while executing pacaur"
     Info "Deleting working directory $package_work_dir"
@@ -746,6 +760,10 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+#Setup trap
+trap SIGINT_trap SIGINT
+
+
 [[ ! -z "$pkg_configs_dir" ]] \
   || ArgumentParsingError "Missing required argument --pkg-configs"
 
@@ -781,6 +799,10 @@ package_log_path="$work_dir/package.log"
 
 #Other global vars
 indent=0
+
+#child PIDs
+pacaur_pid=""
+cower_pid=""
 
 
 
@@ -825,6 +847,3 @@ for cmd in ${action[@]}; do
       ;;
   esac
 done
-
-CleanUp
-exit 0
