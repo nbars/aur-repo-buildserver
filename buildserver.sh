@@ -174,7 +174,8 @@ function CleanUp() {
 #The reason for the error is passed in $1
 function HandleFatalError() {
   if [[ ! -z "$admin_mail" ]]; then
-    echo "Send email here"
+    SendMail "$admin_mail" "[AUR-BUILDSERVER][ERROR] $1" \
+      "Error while running buildserver, see attachment for further informations" "$global_log_path"
   fi
 
   CleanUp
