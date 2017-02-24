@@ -298,6 +298,20 @@ function ParsePackageConfig() {
     __result["$key"]="$val"
   done
   IFS="$OLD_IFS"
+
+  #Check required attributes
+  if [[ -z "${__result[name]}" ]]; then
+    __result=""
+    return "$ERROR"
+  fi
+
+  #TODO check for invalid values
+
+  #Set default values for unset attributes
+  if [[ -z "${__result[disabled]}" ]]; then
+    __result["disabled"]="false"
+  fi
+
   return $SUCCESS
 }
 
