@@ -222,10 +222,7 @@ function CowerInfoWarpper() {
   if [[ -f "$cache_entry" ]]; then
     __result="$(cat "$cache_entry")"
   else
-    __result="$(cower -i "$package_name")"
-    cower_pid="$!"
-    wait "$cower_pid" || return $ERROR
-    cower_pid=""
+    __result="$(cower -i "$package_name")" || return "$ERROR"
     echo "$__result" > "$cache_entry"
   fi
 
