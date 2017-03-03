@@ -777,7 +777,7 @@ while [[ $# -gt 0 ]]; do
     "--debug")
       verbose=true
       ;;
-    "--help")
+    "--help"|"-h")
       PrintUsage
       ;;
     *)
