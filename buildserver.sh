@@ -87,6 +87,13 @@ $(txt_bold)OPTIONS$(txt_reset)
   $(txt_red)--admin-mail $(txt_green) mail address $(txt_reset)
     The mail address of the admin. To this email address a mail
     is send, every time an error accours.
+
+  $(txt_red)--mail-reporting $(txt_green) mail address $(txt_reset)
+    This flag enables sending of mails on several events.
+    Mails will be send on successfully building or updating a package.
+    Also mails will be send, if a error occurs while running this script.
+    The mutt application is used to send email, thus it must be configured
+    for this feature to work.
 EOF
 
 exit 1
