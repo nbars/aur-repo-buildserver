@@ -75,11 +75,13 @@ function test_PkgX() {
 
 function test_RepoX() {
   local err=0
+  SetUp
 
   local pkg_path="$DIR/packages/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz"
 
   RepoMovePackage "$pkg_path"
-  #Restore content of package folder
+
+  #Restore content of template package folder
   SetUp
 
   PkgGetName "$pkg_path"
@@ -98,6 +100,7 @@ function test_RepoX() {
   assertEQ "$__result" "" "$LINENO"
 
   [[ ! -f "$repo_dir/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz" ]] || assertEQ "1" "0" "$LINENO"
+  TearDown
 }
 
 function test_AurDepsResolver() {
