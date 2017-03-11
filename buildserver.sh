@@ -521,6 +521,20 @@ function PackageGetAllAurDepsRec() {
   __result=( ${deps[@]} )
 }
 
+#Import the given GPG key
+#$1 - the ID of the key that should be imported
+#Return $ERROR or $SUCCESS
+function ImportGpgKey() {
+  local readonly key="$1"
+  for server in ${gpg_keyservers[@]}; do
+    if ! gpg --keyserver "$server" --recv-keys  "$key"; then
+      Err "Faild to import key $key from server $server, trying next if there is any"
+    else
+      return "$SUCCESS"
+    fi
+  done
+  return "$ERROR"
+}
 
 function BuildOrUpdatePackage() {
   local package_name="$1"
@@ -657,10 +671,10 @@ function ProcessPackageConfigs() {
     if [[ ! -z "${pkg_cfg[pgp_keys]}" ]]; then
       local import_failed=false
       for key in ${pkg_cfg[pgp_keys]} ; do
-        Info "Importing PGP-Key $key..."
-        if gpg --keyserver "$gpg_keyserver" --recv-keys  "$key"; then
+        Info "Importing GPG-Key $key..."
+        if ! ImportGpgKey "$key"; then
           Err "Faild to import PGP key $key for package ${pkg_cfg[name]}, skipping package..."
-          SendMail "$admin_mail" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild import PGP key" \
+          SendMail "$admin_mail" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild import GPG key" \
             "See attachment" "$package_log_path"
           import_failed=true
           break;
@@ -805,7 +819,7 @@ __result=""
 
 #constants
 #Server from which missing gpg keys will be downloaded
-readonly gpg_keyserver="hkp://pgp.mit.edu"
+readonly gpg_keyservers=("hkp://pgp.mit.edu" "hkp://pool.sks-keyservers.net")
 readonly ERROR=1
 readonly SUCCESS=0
 readonly pkgfile_regex='.*\.pkg\.tar(\.xz|)$'
