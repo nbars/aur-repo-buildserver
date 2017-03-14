@@ -316,7 +316,7 @@ function ParsePackageConfig() {
     __result["disabled"]="false"
   fi
 
-  return $SUCCESS
+  return "$SUCCESS"
 }
 
 #Get the version of an package archive.
@@ -393,11 +393,13 @@ function RepoPackageAndDepsAreUpToDate() {
     name_ver_map["$name"]="$ver"
   done < <(find "$repo_dir" -regextype posix-extended -regex "$pkgfile_regex" -print0)
 
+  #Check if any of the dependencies is outdated
   for dep in ${deps[@]}; do
     CowerGetVersion "$dep"
     local remote_ver="$__result"
     Info "Checking if dependency $dep($remote_ver/${name_ver_map["$dep"]}) is outdated or not build"
     if [[ "${name_ver_map["$dep"]}" == "" || "${name_ver_map["$dep"]}" != "$remote_ver" ]]; then
+      #at least one dependency is outdated
       __result="false"
       return "$SUCCESS"
     fi
@@ -460,7 +462,7 @@ function PackageGetAurDepsRec() {
       || { Err "Seems like there is a dependency cycle, operation failed"; return "$ERROR"; }
 
     local current_proccessed_package="${work_queue[0]}"
-    Dbg "PackageGetAurDeps() work_queue = ${work_queue[*]}"
+    Dbg "PackageGetAurDepsRec() work_queue = ${work_queue[*]}"
 
     CowerGetDeps "$current_proccessed_package" || return "$ERROR"
     local package_deps=( "$__result" )
@@ -498,7 +500,7 @@ function PackageGetAurDepsRec() {
 
   #Remove duplicates
   __result=( $(printf "%s\n" "${__result[@]}" | sort -u) )
-  Dbg "PackageGetAurDeps() $package_name has following dependecies(${#__result[@]}) = ${__result[*]}"
+  Dbg "PackageGetAurDepsRec() $package_name has following dependecies(${#__result[@]}) = ${__result[*]}"
   return "$SUCCESS"
 }
 
