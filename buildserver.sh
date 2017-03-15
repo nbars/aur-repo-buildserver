@@ -381,6 +381,7 @@ function RepoPackageAndDepsAreUpToDate() {
   PackageGetAurDepsRec "$package_name" || return "$ERROR"
   local deps=( ${__result[@]} "$package_name" )
 
+  #Map of all repo package (name->version)
   declare -A name_ver_map
 
   while IFS= read -r -d '' pkg; do
@@ -538,8 +539,11 @@ function ImportGpgKey() {
   return "$ERROR"
 }
 
+#$1 - the target package name
+#$2 - [optional] the mail address build events will be reported to
 function BuildOrUpdatePackage() {
   local package_name="$1"
+  local mail_address="$2"
   local package_work_dir="$work_dir/$package_name"
   Info "Building or updating $package_name"
   Info "Creating working directory $package_work_dir"
@@ -599,19 +603,19 @@ function BuildOrUpdatePackage() {
       if [[ -z "$old_version" ]]; then
         Info "Package $new_package_name was build the first time ($new_package_version)"
         if [[ "$new_package_name" != "$package_name" ]]; then
-          SendMail "$admin_mail" "[AUR-BUILDSERVER][$package_name] Dependency ($new_package_name) successfully build" \
+          SendMail "$admin_mail $mail_address" "[AUR-BUILDSERVER][$package_name] Dependency ($new_package_name) successfully build" \
             "Package $new_package_name ($new_package_version) was build the first time" "$package_log_path"
         else
-          SendMail "$admin_mail" "[AUR-BUILDSERVER][$package_name] Successfully build" \
+          SendMail "$admin_mail $mail_address" "[AUR-BUILDSERVER][$package_name] Successfully build" \
             "Package $new_package_name ($new_package_version) was build the first time" "$package_log_path"
         fi
       else
         Info "Package $new_package_name was updated ($old_version -> $new_package_version)"
         if [[ "$new_package_name" != "$package_name" ]]; then
-          SendMail "$admin_mail" "[AUR-BUILDSERVER][$package_name] Dependency ($new_package_name) successfully updated" \
+          SendMail "$admin_mail $mail_address" "[AUR-BUILDSERVER][$package_name] Dependency ($new_package_name) successfully updated" \
             "Package $new_package_name ($old_version -> $new_package_version) was updated" "$package_log_path"
         else
-          SendMail "$admin_mail" "[AUR-BUILDSERVER][$package_name] Successfully updated" \
+          SendMail "$admin_mail $mail_address" "[AUR-BUILDSERVER][$package_name] Successfully updated" \
             "Package $new_package_name ($old_version -> $new_package_version) was updated" "$package_log_path"
         fi
       fi
@@ -676,7 +680,7 @@ function ProcessPackageConfigs() {
         Info "Importing GPG-Key $key..."
         if ! ImportGpgKey "$key"; then
           Err "Faild to import PGP key $key for package ${pkg_cfg[name]}, skipping package..."
-          SendMail "$admin_mail" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild import GPG key" \
+          SendMail "$admin_mail ${pkg_cfg[mail]}" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild import GPG key" \
             "See attachment" "$package_log_path"
           import_failed=true
           break;
@@ -685,10 +689,10 @@ function ProcessPackageConfigs() {
       [[ "$import_failed" == "false" ]] || { IndentDec; continue; }
     fi
 
-    BuildOrUpdatePackage "${pkg_cfg[name]}"
+    BuildOrUpdatePackage "${pkg_cfg[name]}" "${pkg_cfg[mail]}"
     if [[ $? != $SUCCESS ]]; then
       Err "Faild to update/build package ${pkg_cfg[name]}"
-      SendMail "$admin_mail" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild to update/build package" \
+      SendMail "$admin_mail ${pkg_cfg[mail]}" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild to update/build package" \
         "See attachment" "$package_log_path"
       IndentDec
       continue;
