@@ -505,7 +505,8 @@ function PackageGetAurDepsRec() {
   return "$SUCCESS"
 }
 
-
+#Returns a list all AUR dependencies package names that are required by any
+#configured package.
 function PackageGetAllAurDepsRec() {
   local deps=()
 
@@ -539,6 +540,7 @@ function ImportGpgKey() {
   return "$ERROR"
 }
 
+#This function will build the passed package and all its dependencies.
 #$1 - the target package name
 #$2 - [optional] the mail address build events will be reported to
 function BuildOrUpdatePackage() {
