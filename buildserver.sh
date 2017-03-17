@@ -94,6 +94,14 @@ $(txt_bold)OPTIONS$(txt_reset)
     Also mails will be send, if a error occurs while running this script.
     The mutt application is used to send email, thus it must be configured
     for this feature to work.
+
+  $(txt_red)--db-sign-key $(txt_green) KEY-ID $(txt_reset)
+    Set the GPG key ID that will be used to sign the repository database file.
+
+  $(txt_red)--package-sign-key $(txt_green) KEY-ID $(txt_reset)
+    Set the GPG key ID that will be used to sign the build packages.
+    For package signing to work, you need to add the "sign" flag to
+    the BUILDENV array inside you're local makepkg.conf.
 EOF
 
 exit 1
@@ -128,7 +136,7 @@ function IndentRst() {
 
 function ArgumentParsingError() {
   echo "$(txt_red)$(txt_bold)$1$(txt_reset)"
-  echo "$(txt_red)$(txt_bold)Use the --help flag for further informations(txt_reset)"
+  echo "$(txt_red)$(txt_bold)Use the --help flag for further informations$(txt_reset)"
   exit 1
 }
 
@@ -421,8 +429,13 @@ RepoMovePackage() {
   Dbg "RepoMovePackage($1)"
   mv "$1" "$repo_dir" \
     || ErrFatal "Error while moving package into repository folder"
-  repo-add --new --remove "$repo_db" "$repo_dir/$(basename "$1")" || \
-    ErrFatal "Error while adding package $1 to repository"
+  if [[ ! -z "$db_sign_key" ]]; then
+    repo-add --new --remove -s -v -k "$db_sign_key" "$repo_db" "$repo_dir/$(basename "$1")" || \
+      ErrFatal "Error while adding package $1 to repository"
+  else
+    repo-add --new --remove "$repo_db" "$repo_dir/$(basename "$1")" || \
+      ErrFatal "Error while adding package $1 to repository"
+  fi
 }
 
 #Remove the given package form the repository
@@ -431,15 +444,20 @@ RepoMovePackage() {
 #Returns nothing
 RepoRemovePackage() {
   Dbg "RepoRemovePackage($1)"
-  repo-remove "$repo_db" "$1" \
-    || ErrFatal "Error while removing package $1 from repository"
+  if [[ ! -z "$db_sign_key" ]]; then
+    repo-remove -s -v -k "$db_sign_key" "$repo_db" "$1" \
+      || ErrFatal "Error while removing package $1 from repository"
+  else
+    repo-remove "$repo_db" "$1" \
+      || ErrFatal "Error while removing package $1 from repository"
+  fi
   while IFS= read -r -d '' pkg; do
     PkgGetName "$pkg"
     if [[ "$__result" == "$1" ]]; then
       Dbg "Deleting $pkg"
       rm "$pkg"
     fi
-  done < <(find "$repo_dir" -regextype posix-extended -regex '.*\.pkg\.tar(\.xz|)$' -print0)
+  done < <(find "$repo_dir" -regextype posix-extended -regex "$pkgfile_regex" -print0)
 }
 
 ####################
@@ -566,6 +584,8 @@ function BuildOrUpdatePackage() {
   #Fixes EDITOR not set error on docker host
   export EDITOR=nano
 
+  export GPGKEY="$package_sign_key"
+
   Info "Running pacaur"
 
   pacaur -m --needed --noconfirm --noedit "$package_name" 2>&1 | tee -a "$global_log_path" "$package_log_path" &
@@ -581,7 +601,7 @@ function BuildOrUpdatePackage() {
 
   #New build packages aren't symlinks
   local new_files
-  new_files="$(find "$package_work_dir" -mindepth 1 ! -type l)" \
+  new_files="$(find "$package_work_dir" -regextype posix-extended -regex "$pkgfile_regex" -mindepth 1 ! -type l)" \
     || return "$ERROR"
 
   if [[ -z "$new_files" ]]; then
@@ -793,6 +813,16 @@ while [[ $# -gt 0 ]]; do
       shift
       admin_mail="$1"
       ;;
+    "--db-sign-key")
+      [[ $# -gt 1 ]] || ArgumentParsingError "Missing argument for --db-sign-key"
+      shift
+      db_sign_key="$1"
+      ;;
+    "--package-sign-key")
+      [[ $# -gt 1 ]] || ArgumentParsingError "Missing argument for --package-sign-key"
+      shift
+      package_sign_key="$1"
+      ;;
     "--mail-reporting")
       mail_reporting=true
       ;;
@@ -826,7 +856,7 @@ trap SIGINT_trap SIGINT
 __result=""
 
 #constants
-#Server from which missing gpg keys will be downloaded
+#Servers from which missing GPG keys will be downloaded
 readonly gpg_keyservers=("hkp://pgp.mit.edu" "hkp://pool.sks-keyservers.net")
 readonly ERROR=1
 readonly SUCCESS=0
@@ -861,6 +891,17 @@ cower_pid=""
 #Check for empty required arguments
 if [[ -z "$repo_dir" || -z "$pkg_configs_dir" || -z "$action" ]]; then
   PrintUsage "Missing at least one required argument"
+fi
+
+#Check if given GPG keys exists 
+if [[ ! -z "$db_sign_key"  ]]; then
+  gpg --list-keys "$db_sign_key" &> /dev/null \
+    || { Err "There is no GPG key with ID $db_sign_key"; exit 1; }
+fi
+
+if [[ ! -z "$package_sign_key" ]]; then
+  gpg --list-keys "$package_sign_key" &> /dev/null \
+    || { Err "There is no GPG key with ID $package_sign_key"; exit 1; }
 fi
 
 mkdir -p "$work_dir" \
