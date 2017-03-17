@@ -812,7 +812,6 @@ done
 #Setup trap
 trap SIGINT_trap SIGINT
 
-
 [[ ! -z "$pkg_configs_dir" ]] \
   || ArgumentParsingError "Missing required argument --pkg-configs"
 
@@ -821,6 +820,7 @@ trap SIGINT_trap SIGINT
 
 [[ ! -z "$action" ]] \
   || ArgumentParsingError "Missing required argument --action"
+
 
 #Return variable
 __result=""
@@ -872,6 +872,18 @@ mkdir -p "$cower_cache" \
 #Setup global logging
 echo -n > "$global_log_path" \
   || ErrFatal "Error while creating $global_log_path"
+
+#Check if all needed applications are installed
+for app in pacaur cower pacman; do
+  if ! type "$app" &> /dev/null; then
+    Err "Needed application $app is not installed"
+    exit 1
+  fi
+done
+
+if [[ ! -z "$mail_reporting" ]]; then
+  info "mutt" &> /dev/null || { Err "Missing mutt application"; exit 1; }
+fi
 
 if [[ "$AUR_REPO_BUILDSERVER_TEST" == "true" ]]; then
   Dbg "Build server is in testing mode. Argument --action will be ignored"
