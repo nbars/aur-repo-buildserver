@@ -888,12 +888,7 @@ cower_pid=""
 
 ########## Setup ##########
 
-#Check for empty required arguments
-if [[ -z "$repo_dir" || -z "$pkg_configs_dir" || -z "$action" ]]; then
-  PrintUsage "Missing at least one required argument"
-fi
-
-#Check if given GPG keys exists 
+#Check if given GPG keys exists
 if [[ ! -z "$db_sign_key"  ]]; then
   gpg --list-keys "$db_sign_key" &> /dev/null \
     || { Err "There is no GPG key with ID $db_sign_key"; exit 1; }
