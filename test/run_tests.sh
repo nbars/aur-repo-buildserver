@@ -113,7 +113,13 @@ function test_RepoX() {
 }
 
 function test_BuildOrUpdatePackage() {
-  BuildOrUpdatePackage "cutecom" ""
+  ParsePackageConfig "$PWD/configs/cutecom.conf"
+
+  #Global var used by the buildserver
+  #Assign __result to current_package_cfg
+  eval $(typeset -A -p __result|sed 's/ __result=/ current_package_cfg=/')
+
+  BuildOrUpdatePackage
   assertEQ "$?" "$SUCCESS" "$LINENO"
 
   RepoGetPackageVersion "cutecom"
