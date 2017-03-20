@@ -76,11 +76,12 @@ function test_PkgX() {
 function test_RepoX() {
   local pkg_path="$DIR/packages/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz"
 
+  PkgGetName "$pkg_path"
+  local name="$__result"
+
   #Please mind that this will remove the pkg.tar.xz file from its current location
   RepoMovePackage "$pkg_path"
 
-  PkgGetName "$pkg_path"
-  local name="$__result"
   assertEQ "$name" "xorg-server-common" "$LINENO"
 
   RepoGetPackageVersion "$name"
@@ -114,6 +115,7 @@ function run_test() {
   TearDown
 }
 
+SetUp
 export AUR_REPO_BUILDSERVER_TEST=true
 . ./../buildserver.sh --pkg-configs $DIR/configs --repo-dir $DIR/repo --action clean,build --debug
 
