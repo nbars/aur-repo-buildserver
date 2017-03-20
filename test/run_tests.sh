@@ -74,15 +74,10 @@ function test_PkgX() {
 }
 
 function test_RepoX() {
-  local err=0
-  SetUp
-
   local pkg_path="$DIR/packages/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz"
 
+  #Please mind that this will remove the pkg.tar.xz file from its current location
   RepoMovePackage "$pkg_path"
-
-  #Restore content of template package folder
-  SetUp
 
   PkgGetName "$pkg_path"
   local name="$__result"
@@ -99,8 +94,8 @@ function test_RepoX() {
   RepoGetPackageVersion "$name"
   assertEQ "$__result" "" "$LINENO"
 
+  #Check if the package was removed from the repository
   [[ ! -f "$repo_dir/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz" ]] || assertEQ "1" "0" "$LINENO"
-  TearDown
 }
 
 function test_AurDepsResolver() {
@@ -111,22 +106,24 @@ function test_AurDepsResolver() {
 rm -rf "$DIR/repo"
 rm -rf "$DIR/packages"
 
-#Create directory structure
-SetUp
+function run_test() {
+  SetUp
+  echo "=> Running $1"
+  eval "$1"
+  echo "=> Finished $1"
+  TearDown
+}
 
 export AUR_REPO_BUILDSERVER_TEST=true
 . ./../buildserver.sh --pkg-configs $DIR/configs --repo-dir $DIR/repo --action clean,build --debug
 
-
 #Run tests
-test_config_parse
-test_cower
-test_PkgX
-test_RepoX
-test_AurDepsResolver
-
-#Delete all used dirs
-TearDown
+run_test test_config_parse
+run_test test_config_parse
+run_test test_cower
+run_test test_PkgX
+run_test test_RepoX
+run_test test_AurDepsResolver
 
 #Cleanup from buildserver.sh
 CleanUp
