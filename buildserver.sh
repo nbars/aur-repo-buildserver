@@ -563,8 +563,9 @@ function ImportGpgKey() {
 #$2 - [optional] the mail address build events will be reported to
 #Returns $ERROR or $SUCCESS
 function BuildOrUpdatePackage() {
-  local package_name="$1"
-  local mail_address="$2"
+  local package_name="${current_package_cfg[name]}"
+  local mail_address="${current_package_cfg[mail]}"
+
   local package_work_dir="$work_dir/$package_name"
   Info "Building or updating $package_name"
   Info "Creating working directory $package_work_dir"
@@ -673,37 +674,37 @@ function ProcessPackageConfigs() {
     #Start new log
     echo > "$package_log_path"
 
-    #Copy package config array from __result to pkg_cfg
+    #Copy package config array from __result to current_package_cfg
     #TODO: Make this less ugly
-    eval $(typeset -A -p __result|sed 's/ __result=/ pkg_cfg=/')
+    eval $(typeset -A -p __result|sed 's/ __result=/ current_package_cfg=/')
 
-    Info "Processing package $(txt_bold)${pkg_cfg[name]}$(txt_reset)"
+    Info "Processing package $(txt_bold)${current_package_cfg[name]}$(txt_reset)"
     IndentInc
 
-    if [[ ! -z "${pkg_cfg[disabled]}" && "${pkg_cfg[disabled]}" == "true" ]]; then
+    if [[ ! -z "${current_package_cfg[disabled]}" && "${current_package_cfg[disabled]}" == "true" ]]; then
       Info "Config $cfg is disabled, skipping..."
       IndentDec
       continue;
     fi
 
     #Check if packages and deps are up-to-date
-    RepoPackageAndDepsAreUpToDate "${pkg_cfg[name]}"
+    RepoPackageAndDepsAreUpToDate "${current_package_cfg[name]}"
     if [[ "$__result" == "true" ]]; then
-      Info "Package ${pkg_cfg[name]} and its dependencies are $(txt_bold)up-to-date$(txt_reset)"
+      Info "Package ${current_package_cfg[name]} and its dependencies are $(txt_bold)up-to-date$(txt_reset)"
       IndentDec
       continue;
     else
-      Info "Package ${pkg_cfg[name]} is $(txt_bold)not installed or outdated$(txt_reset)"
+      Info "Package ${current_package_cfg[name]} is $(txt_bold)not installed or outdated$(txt_reset)"
     fi
 
     #Import needed PGP keys
-    if [[ ! -z "${pkg_cfg[pgp_keys]}" ]]; then
+    if [[ ! -z "${current_package_cfg[pgp_keys]}" ]]; then
       local import_failed=false
-      for key in ${pkg_cfg[pgp_keys]} ; do
+      for key in ${current_package_cfg[pgp_keys]} ; do
         Info "Importing GPG-Key $key..."
         if ! ImportGpgKey "$key"; then
-          Err "Faild to import PGP key $key for package ${pkg_cfg[name]}, skipping package..."
-          SendMail "$admin_mail ${pkg_cfg[mail]}" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild import GPG key" \
+          Err "Faild to import PGP key $key for package ${current_package_cfg[name]}, skipping package..."
+          SendMail "$admin_mail ${current_package_cfg[mail]}" "[AUR-BUILDSERVER][${current_package_cfg[name]}] Faild import GPG key" \
             "See attachment" "$package_log_path"
           import_failed=true
           break;
@@ -712,10 +713,10 @@ function ProcessPackageConfigs() {
       [[ "$import_failed" == "false" ]] || { IndentDec; continue; }
     fi
 
-    BuildOrUpdatePackage "${pkg_cfg[name]}" "${pkg_cfg[mail]}"
+    BuildOrUpdatePackage
     if [[ $? != $SUCCESS ]]; then
-      Err "Faild to update/build package ${pkg_cfg[name]}"
-      SendMail "$admin_mail ${pkg_cfg[mail]}" "[AUR-BUILDSERVER][${pkg_cfg[name]}] Faild to update/build package" \
+      Err "Faild to update/build package ${current_package_cfg[name]}"
+      SendMail "$admin_mail ${current_package_cfg[mail]}" "[AUR-BUILDSERVER][${current_package_cfg[name]}] Faild to update/build package" \
         "See attachment" "$package_log_path"
       IndentDec
       continue;
@@ -880,6 +881,8 @@ package_log_path="$work_dir/package.log"
 
 #Other global vars
 indent=0
+#Associative array of the config that is currently processed
+current_package_cfg=""
 
 #child PIDs
 pacaur_pid=""
