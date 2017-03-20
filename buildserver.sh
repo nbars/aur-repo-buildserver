@@ -929,15 +929,16 @@ fi
 
 #Check action
 
-action=( "$(echo "$action" | tr ',' ' ')" )
+actions=( "$(echo "$action" | tr ',' ' ')" )
 
-for cmd in ${action[@]}; do
+for cmd in ${actions[@]}; do
   case $cmd in
     "build")
       #Process all configs and update/build the packages
       ProcessPackageConfigs
       ;;
     "clean")
+      #Remove all packages from the repository that have no config file
       RemovePackgesWoConfig
       ;;
     *)
