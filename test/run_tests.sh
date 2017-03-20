@@ -17,6 +17,19 @@ function arrayEQ() {
   assertEQ "${arr0[*]}" "${arr1[*]}" "$3"
 }
 
+function assertNEQ() {
+  if [[ "$1" == "$2" ]]; then
+    echo "$(txt_red)$(txt_bold)"
+    echo "------------------------------------"
+    echo "=> Assertion failed"
+    echo "=> Line: $3"
+    echo "=> Expected other value then: \"$1\""
+    echo "------------------------------------"
+    echo "$txt_reset"
+    exit_code=1
+  fi
+}
+
 function assertEQ() {
   if [[ "$1" != "$2" ]]; then
     echo "$(txt_red)$(txt_bold)"
@@ -99,6 +112,18 @@ function test_RepoX() {
   [[ ! -f "$repo_dir/xorg-server-common-1.19.1-5-x86_64.pkg.tar.xz" ]] || assertEQ "1" "0" "$LINENO"
 }
 
+function test_BuildOrUpdatePackage() {
+  BuildOrUpdatePackage "cutecom" ""
+  assertEQ "$?" "$SUCCESS" "$LINENO"
+
+  RepoGetPackageVersion "cutecom"
+  assertNEQ "$__result" ""
+
+  RepoRemovePackage "cutecom"
+  RepoGetPackageVersion "cutecom"
+  assertEQ "$__result" ""
+}
+
 function test_AurDepsResolver() {
   PackageGetAurDepsRec "seafile-client"
   arrayEQ "${__result[*]}" "ccnet seafile ccnet-server ccnet libsearpc ccnet-server libsearpc" "$LINENO"
@@ -110,8 +135,10 @@ rm -rf "$DIR/packages"
 function run_test() {
   SetUp
   echo "=> Running $1"
+  local start_ts="$(date "+%s")"
   eval "$1"
-  echo "=> Finished $1"
+  local end_ts="$(date "+%s")"
+  echo "=> Finished $1 ($((end_ts - start_ts)) seconds)"
   TearDown
 }
 
@@ -126,6 +153,7 @@ run_test test_cower
 run_test test_PkgX
 run_test test_RepoX
 run_test test_AurDepsResolver
+run_test test_BuildOrUpdatePackage
 
 #Cleanup from buildserver.sh
 CleanUp

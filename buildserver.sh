@@ -561,6 +561,7 @@ function ImportGpgKey() {
 #This function will build the passed package and all its dependencies.
 #$1 - the target package name
 #$2 - [optional] the mail address build events will be reported to
+#Returns $ERROR or $SUCCESS
 function BuildOrUpdatePackage() {
   local package_name="$1"
   local mail_address="$2"
