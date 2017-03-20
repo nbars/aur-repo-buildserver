@@ -226,7 +226,7 @@ function CowerGetDeps() {
   return $SUCCESS
 }
 
-#$1 - package name to quarry
+#$1 - package name for which infos will be requested
 #Returns the output from cower and $SUCCESS or $ERROR
 function CowerInfoWarpper() {
   local package_name="$1"
