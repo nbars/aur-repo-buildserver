@@ -593,13 +593,14 @@ function BuildOrUpdatePackage() {
   pacaur -m --needed --noconfirm --noedit "$package_name" 2>&1 | tee -a "$global_log_path" "$package_log_path" &
   pacaur_pid="$!"
   wait "$pacaur_pid"
-  pacaur_pid=""
   if [[ $? -ne 0 ]]; then
+    pacaur_pid=""
     Err "BuildOrUpdatePackage($1) Error while executing pacaur"
     Info "Deleting working directory $package_work_dir"
     rm -rf "$package_work_dir"
     return "$ERROR"
   fi
+  pacaur_pid=""
 
   #New build packages aren't symlinks
   local new_files
