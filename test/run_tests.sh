@@ -123,7 +123,7 @@ function test_BuildOrUpdatePackage() {
   assertEQ "$?" "$SUCCESS" "$LINENO"
 
   RepoGetPackageVersion "cutecom"
-  assertNEQ "$__result" ""
+  assertNEQ "$__result" "" "$LINENO"
 
   RepoRemovePackage "cutecom"
   RepoGetPackageVersion "cutecom"
