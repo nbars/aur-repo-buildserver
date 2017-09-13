@@ -213,7 +213,8 @@ function CowerGetVersion() {
 
 #Get the direct dependencies (non recursive) of the given package.
 #$1 - the package name
-#Returns an array of dependencies in $__result and $SUCCESS or $ERROR
+#Returns an array of dependencies in $__result and $SUCCESS
+#or $ERROR if the package is not in the AUR.
 function CowerGetDeps() {
   unset __result
 
@@ -227,7 +228,8 @@ function CowerGetDeps() {
 }
 
 #$1 - package name for which infos will be requested
-#Returns the output from cower and $SUCCESS or $ERROR
+#Returns the output from cower and $SUCCESS
+#or $ERROR if the package is no AUR target.
 function CowerInfoWarpper() {
   local package_name="$1"
   local cache_entry="${cower_cache}/${package_name}"
