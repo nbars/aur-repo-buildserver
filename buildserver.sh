@@ -483,22 +483,27 @@ function PackageGetAurDepsRec() {
     local current_proccessed_package="${work_queue[0]}"
     Dbg "PackageGetAurDepsRec() work_queue = ${work_queue[*]}"
 
+    #Packages provided by pacman do not have AUR deps!
+    if pacman -Si "$current_proccessed_package" &> /dev/null; then
+      Dbg "PackageGetAurDepsRec() $current_proccessed_package is provided by pacman, skipping..."
+      unset "__result"
+      return "$SUCCESS"
+    fi
+
     CowerGetDeps "$current_proccessed_package" || return "$ERROR"
     local package_deps=( "$__result" )
 
+    #Check if the dependencies of $current_proccessed_package are provided by
+    #the AUR.
     for dep in ${package_deps[@]}; do
       #Filter version string
       dep="$(echo "$dep" | egrep -o "^([a-z]|[A-Z]|-|\.|[0-9])*")"
 
-      #Quarry pacman first, because local db access is faster
-      if ! pacman -Si "$dep" &> /dev/null; then
-        #Some packages are also not provided by pacman (virtual packages?)
-        #TODO: Optimize
+      Dbg "Checking if $dep is an AUR dependency..."
 
-        if cower -i "$dep" &> /dev/null; then
-          Dbg "$dep is a AUR dependency"
-          work_queue+=("$dep")
-        fi
+      if cower -i "$dep" &> /dev/null; then
+        Dbg "$dep is a AUR dependency"
+        work_queue+=("$dep")
       fi
     done
 
