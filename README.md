@@ -8,8 +8,8 @@ build process and reducing maintenance time for updating the local system.
 
 Packages that should be build by the server are configured by
 config files. The directory that contains theses files is passed with the
---pkg-configs flag. An config files must end with a .config suffix and the
-content must looks like this:
+--pkg-configs flag. A config files must end with a .config suffix and the
+content must look like this:
 
 name = i3blocks
 disabled = false
