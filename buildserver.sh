@@ -136,7 +136,7 @@ function IndentRst() {
 
 function ArgumentParsingError() {
   echo "$(txt_red)$(txt_bold)$1$(txt_reset)"
-  echo "$(txt_red)$(txt_bold)Use the --help flag for further informations$(txt_reset)"
+  echo "$(txt_red)$(txt_bold)Use the --help flag for further information$(txt_reset)"
   exit 1
 }
 
@@ -190,7 +190,7 @@ function CleanUp() {
 function HandleFatalError() {
   if [[ ! -z "$admin_mail" ]]; then
     SendMail "$admin_mail" "[AUR-BUILDSERVER][ERROR] $1" \
-      "Error while running buildserver, see attachment for further informations" "$global_log_path"
+      "Error while running buildserver, see attachment for further information" "$global_log_path"
   fi
 
   CleanUp
@@ -315,6 +315,7 @@ function ParsePackageConfig() {
 
   #Check required attributes
   if [[ -z "${__result[name]}" ]]; then
+    Err "ParsePackageConfig($1): Missing name attribute!"
     __result=""
     return "$ERROR"
   fi
@@ -562,6 +563,7 @@ function ImportGpgKey() {
       return "$SUCCESS"
     fi
   done
+  Err "Failed to import ${key}!"
   return "$ERROR"
 }
 
