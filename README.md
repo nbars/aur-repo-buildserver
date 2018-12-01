@@ -2,31 +2,31 @@
 
 ```
 This software can be used for running a server that periodically builds packages
-from the AUR. The resulting artifacts are automatically added into a repository
+from the AUR. The resulting artifacts are automatically added to a repository
 which in turn can be used by pacman. This allows you to source out
 the complete building process and by that reducing maintenance time for updating
 the local system.
 
-Packages that should be build by the server are configured by
-config files. The directory that contains theses files is passed with the
---pkg-configs flag. A config files must end with a .config suffix and the
-content must looks like this:
+Packages that should be built by the server are configured by
+config files. The directory that contains these files is passed by the
+--pkg-configs flag. Config files must end with a .config suffix, and the
+content must look like this:
 
 name = i3blocks
 disabled = false
 
-Another argument that is always needed is --repo-dir. This flags is used to
-configure the directory where the repository should be created . The third required argument
-is --action, this argument decides what the buildserver should do.
+Another argument that is always needed is --repo-dir. This flag is used to
+configure the directory where the repository should be created. The third required argument
+is --action, this argument determines what the build server should do.
 
 Command line format
   ./buildserver.sh [--pkg-configs packages config dir] [--repo-dir path] [--action action] [OPTION]...
 
 Required argument
   --action  action0,action1... 
-  The actions that should be performed by the buildserver (comma separated).
-  Please mind that chaining several action improves performance due to caching.
-  For example the dependency resolve results from the clean action can be reused
+  The actions that should be performed by the build server (comma separated).
+  Please mind that chaining several actions improves performance due to caching.
+  For example, the dependency resolve results from the clean action can be reused
   by the build action.
   Possible values are the following:
     build 
@@ -37,16 +37,16 @@ Required argument
       associated config files in the --pkg-configs directory.
 
   --repo-dir  path 
-    Path must point to an directory where the repo database should be created.
-    If in the given directory a database already exists, it will be update.
+    The path must point to a directory where the repo database should be created.
+    If in the given directory a database already exists, it will be updated.
 
   --pkg-configs  path 
-    Path to a directory that contains multiple package configuration files.
+    The path to a directory that contains multiple package configuration files.
 
 
 OPTIONS
   --work-dir  path 
-    Directory where packages are build.
+    The directory where packages are built.
     Default value is $HOME/.cache/aur-repo-buildserver
 
   --repo-name  name 
